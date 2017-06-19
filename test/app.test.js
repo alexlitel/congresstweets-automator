@@ -20,6 +20,10 @@ beforeAll(() => {
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 60000
 
 describe('App class', () => {
+    afterEach(async() => {
+        await redisClient.flushdbAsync()
+    })
+
     test('App instantiation', () => {
         const app = new App(APP_CONFIG, redisClient)
         const app2 = appBuilder(APP_CONFIG, redisClient)
@@ -44,7 +48,6 @@ describe('App class', () => {
 
     test('App run process', async() => {
             const app = new App(APP_CONFIG, redisClient)
-            await redisClient.delAsync('app')
             await app.run()
             const appData = await redisClient.hgetallAsync('app')
             expect(JSON.parse(appData.tweets).length).toBeGreaterThan(0)

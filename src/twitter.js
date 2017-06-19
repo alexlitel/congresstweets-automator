@@ -8,11 +8,11 @@ import {
 export class Tweet {
   static getLink(data, isRetweet) {
     const {
-      screen_name: screenName,
+      user: { screen_name: screenName },
       id_str: tweetId,
     } =
-    isRetweet ? data.retweeted_status.user : data.user
-    return `https://www.twitter.com/${screenName}/${tweetId}`
+    isRetweet ? data.retweeted_status : data
+    return `https://www.twitter.com/${screenName}/statuses/${tweetId}`
   }
 
   static parseText(data, isRetweet, isQuote) {
@@ -24,6 +24,7 @@ export class Tweet {
   constructor(data) {
     const isRetweet = _.has(data, 'retweeted_status')
     const isQuote = _.has(data, 'quoted_status')
+    this.id = data.id_str
     this.screen_name = data.user.screen_name
     this.time = getTime(new Date(data.created_at), true)
     this.link = this.constructor.getLink(data, isRetweet)
@@ -102,16 +103,10 @@ export class TwitterHelper {
       }
     }
 
-    if (time.today) {
-      tweetsCollection = _.values(tweetsCollection)
-    }
-
     return {
       sinceId: newSinceId,
       success: count > 0,
-      tweets: time.yesterdayDate ?
-          [[...data.tweets], ..._.values(tweetsCollection)]
-          : [...data.tweets, ...tweetsCollection],
+      tweets: time.yesterdayDate ? _.values(tweetsCollection) : tweetsCollection
     }
   }
 

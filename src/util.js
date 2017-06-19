@@ -22,7 +22,7 @@ export const checkDateValidity = (date, time) => {
 
 export const createTimeObj = (data) => {
   const time = {}
-  time.now = getTime(Date.now()).startOf('hour')
+  time.now = getTime().startOf('hour')
   time.todayDate = getTime(time.now).format('YYYY-MM-DD')
 
   if (data.lastRun) {
@@ -37,7 +37,7 @@ export const createTimeObj = (data) => {
     }
   }
   // eslint-disable-next-line
-  return mapValues(time, v => moment.isDate(v) ? v.format() : v)
+  return mapValues(time, v => moment.isDate(v) || moment.isMoment(v) ? v.format() : v)
 }
 
 

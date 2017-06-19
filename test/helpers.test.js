@@ -24,9 +24,6 @@ beforeAll(() => {
 })
 
 describe('Markdown post building class methods', () => {
-  // console.log(BuildMd.)
-
-
   test('Category header generator', () => {
     expect(BuildMd.categoryHeader('Foo', 1)).toEqual('<h2 class="items-cat-title items-cat-title-h2">Foo</h2>')
   })

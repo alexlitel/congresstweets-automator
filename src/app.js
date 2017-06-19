@@ -1,7 +1,9 @@
 import path from 'path'
 import fs from 'fs'
 import _ from 'lodash'
-import { TwitterHelper } from './twitter'
+import {
+    TwitterHelper,
+} from './twitter'
 import GithubHelper from './github'
 import {
     createTimeObj,
@@ -45,21 +47,34 @@ export class App {
 
       const twitterClient = new TwitterHelper(this.config.TWITTER_CONFIG, this.config.LIST_ID)
       const twitterData = await twitterClient.run(data)
+
       const newData = {}
       newData.sinceId = twitterData.sinceId
-      newData.tweets = data.time.yesterdayDate ? [...twitterData.tweets[2]] : twitterData.tweets
+      if (data.tweets.length !== twitterData.tweets.length) {
+        newData.tweets = _.uniqBy(data.time.yesterdayDate 
+                                    ? twitterData.tweets[2] 
+                                    : [...data.tweets, ...twitterData.tweets], 'id')
+      }
 
       if (data.time.yesterdayDate) {
-        data.tweets = [..._.flatten(twitterData.tweets.slice(0, -1))]
+        data.tweets = _.chain(twitterData.tweets)
+                        .slice(0, -1)
+                        .flatten()
+                        .uniqBy('id')
+                        .value()
+
         await new GithubHelper(this.config.GITUB_TOKEN, this.config.GITHUB_CONFIG).run(data)
         newData.lastUpdate = getTime(data.time.todayDate, 'M-D-Y')
       }
+
       newData.lastRun = data.time.now
       await this.redisClient.hmsetAsync('app', _.mapValues(newData, v => JSON.stringify(v)))
     } catch (e) {
-      return Promise.reject(e)
+      // eslint-disable-next-line no-console
+      console.log('error with running', e)
+      return e
     }
-
+    await this.redisClient.quit()
     return true
   }
 

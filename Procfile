@@ -1,1 +1,1 @@
-web: node lib/app
+web: node lib/main
