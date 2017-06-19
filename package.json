@@ -1,0 +1,56 @@
+{
+  "name": "congresstweets",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "<alexlitel@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "start": "yarn dev:start",
+    "dev:start": "nodemon -e js,jsx --ignore lib --ignore dist --exec cross-env NODE_ENV=development babel-node app",
+    "prod:build": "rimraf lib dist && babel src -d lib --ignore .test.js && cross-env NODE_ENV=production",
+    "prod:start": "heroku local",
+    "lint": "eslint --fix src --ext .js",
+    "test": "yarn lint && jest --coverage",
+    "heroku-postbuild": "yarn prod:build",
+    "precommit": "yarn test",
+    "prepush": "yarn test && yarn prod:build"
+  },
+  "jest": {
+    "testRegex": "test/.+.test.js"
+  },
+  "dependencies": {
+    "bluebird": "^3.5.0",
+    "dotenv": "^4.0.0",
+    "ent": "^2.2.0",
+    "flat": "^2.0.1",
+    "github": "^9.2.0",
+    "lodash": "^4.17.4",
+    "moment": "^2.18.1",
+    "moment-timezone": "^0.5.13",
+    "pretty": "^2.0.0",
+    "redis": "^2.7.1",
+    "twit": "^2.2.5"
+  },
+  "devDependencies": {
+    "babel-jest": "^20.0.3",
+    "babel-plugin-syntax-class-properties": "^6.13.0",
+    "babel-plugin-transform-class-properties": "^6.24.1",
+    "babel-plugin-transform-object-rest-spread": "^6.23.0",
+    "babel-polyfill": "^6.23.0",
+    "babel-preset-env": "^1.5.2",
+    "coveralls": "^2.13.1",
+    "cross-env": "^5.0.1",
+    "eslint": "^3.19.0",
+    "eslint-config-airbnb-base": "^11.2.0",
+    "eslint-plugin-import": "^2.3.0",
+    "husky": "^0.13.4",
+    "jest": "^20.0.4",
+    "nodemon": "^1.11.0",
+    "redis-mock": "^0.17.0",
+    "rimraf": "^2.6.1"
+  },
+  "engines": {
+    "node": "8.x",
+    "yarn": "0.24.6"
+  }
+}

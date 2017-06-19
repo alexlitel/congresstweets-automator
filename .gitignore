@@ -1,0 +1,9 @@
+.env
+.DS_Store/
+*.log
+/coverage/
+node_modules/
+/lib/
+/dist/
+.env
+/junk/
