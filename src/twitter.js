@@ -92,6 +92,7 @@ export class TwitterHelper {
             }, tweetsCollection)
           } else {
             tweetsCollection.push(...tweets
+              .filter(x => checkDateValidity(x.created_at, time.todayDate))
               .map(tweet => new Tweet(tweet)))
           }
           isValid = checkDateValidity(lastTweet.created_at, time.todayDate)
@@ -106,7 +107,7 @@ export class TwitterHelper {
     return {
       sinceId: newSinceId,
       success: count > 0,
-      tweets: time.yesterdayDate ? _.values(tweetsCollection) : tweetsCollection
+      tweets: time.yesterdayDate ? _.values(tweetsCollection) : tweetsCollection,
     }
   }
 

@@ -34,8 +34,9 @@ export class App {
                 this.redisClient
                 .hgetallAsync('app')
                 .then(obj =>
+                  // eslint-disable-next-line no-confusing-arrow
                     _.mapValues(obj, v =>
-                        JSON.parse(v))) : this.init()
+                        v !== undefined && v !== 'undefined' ? JSON.parse(v) : null)) : this.init()
             )
 
       data.time = _.chain(data)
@@ -49,10 +50,13 @@ export class App {
       const twitterData = await twitterClient.run(data)
 
       const newData = {}
-      newData.sinceId = twitterData.sinceId
+      if (twitterData.sinceId !== undefined && twitterData.sinceId !== 'undefined') {
+        newData.sinceId = twitterData.sinceId
+      }
+
       if (data.tweets.length !== twitterData.tweets.length) {
-        newData.tweets = _.uniqBy(data.time.yesterdayDate 
-                                    ? twitterData.tweets[2] 
+        newData.tweets = _.uniqBy(data.time.yesterdayDate
+                                    ? twitterData.tweets[2]
                                     : [...data.tweets, ...twitterData.tweets], 'id')
       }
 
@@ -63,12 +67,15 @@ export class App {
                         .uniqBy('id')
                         .value()
 
-        await new GithubHelper(this.config.GITUB_TOKEN, this.config.GITHUB_CONFIG).run(data)
-        newData.lastUpdate = getTime(data.time.todayDate, 'M-D-Y')
+        await new GithubHelper(this.config.GITHUB_TOKEN, this.config.GITHUB_CONFIG).run(data)
+        newData.lastUpdate = data.time.todayDate
       }
 
       newData.lastRun = data.time.now
-      await this.redisClient.hmsetAsync('app', _.mapValues(newData, v => JSON.stringify(v)))
+      await this.redisClient.hmsetAsync('app', _.chain(newData)
+                                                .omitBy(v => _.isNil(v))
+                                                .mapValues(v => JSON.stringify(v))
+                                                .value())
     } catch (e) {
       // eslint-disable-next-line no-console
       console.log('error with running', e)

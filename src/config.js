@@ -8,7 +8,7 @@ export const TWITTER_CONFIG = {
   consumer_secret: process.env.TWITTER_API_SECRET || null,
 }
 
-export const TIME_ZONE = process.env.TZ
+export const TIME_ZONE = process.env.TZ || 'America/New_York'
 export const LIST_ID = process.env.LIST_ID
 export const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
 export const GITHUB_TOKEN = process.env.GITHUB_TOKEN
