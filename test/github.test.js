@@ -22,7 +22,7 @@ describe('Github helper methods', () => {
       type: 'oauth',
       token: githubClient.token,
     })
-    data.users = JSON.parse(fs.readFileSync(path.join(__dirname, '/../data/users-filtered.json')))
+    data.users = JSON.parse(fs.readFileSync(path.join(__dirname, './data/users.json')))
     data.tweets = JSON.parse(fs.readFileSync(path.join(__dirname, '/data/tweets-parsed.json')))
     data.time = {
       yesterdayDate: getTime('2017-06-01', 'YYYY-MM-DD'),

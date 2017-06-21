@@ -63,7 +63,7 @@ export class TwitterHelper {
     let newSinceId
     let maxId
     let count = 0
-    let tweetsCollection = time.yesterday ? {
+    let tweetsCollection = time.yesterdayDate ? {
       yesterday: [],
       today: [],
     } : []

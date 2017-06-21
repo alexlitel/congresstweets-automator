@@ -14,11 +14,12 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 60000
 const data = {}
 
 const loadData = () => {
-  data.users = JSON.parse(fs.readFileSync(path.join(__dirname, '/../data/users-filtered.json')))
+  data.users = JSON.parse(fs.readFileSync(path.join(__dirname, '/data/users.json')))
   data.tweets = JSON.parse(fs.readFileSync(path.join(__dirname, '/data/tweets-parsed.json')))
   data.yesterdayDate = getTime('2017-06-13', 'YYYY-MM-DD')
   data.samplePost = fs.readFileSync(path.join(__dirname, '/data/2017-06-13-tweets.md')).toString()
 }
+
 beforeAll(() => {
   loadData()
 })
