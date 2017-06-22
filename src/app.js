@@ -54,7 +54,7 @@ export class App {
         newData.sinceId = twitterData.sinceId
       }
 
-      if (data.tweets.length !== twitterData.tweets.length) {
+      if (twitterData.tweets.length > 0 || data.time.yesterdayDate) {
         newData.tweets = _.uniqBy(data.time.yesterdayDate
                                     ? twitterData.tweets[2]
                                     : [...data.tweets, ...twitterData.tweets], 'id')

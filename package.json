@@ -6,14 +6,17 @@
   "license": "MIT",
   "scripts": {
     "start": "yarn dev:start",
+    "dev:run": "cross-env NODE_ENV=development babel-node",
     "dev:start": "cross-env NODE_ENV=development babel-node src/main.js",
+    "dev:maintain": "yarn dev:run src/maintenance.js",
     "prod:build": "rimraf lib dist && babel src -d lib --ignore .test.js && cross-env NODE_ENV=production",
     "prod:start": "heroku local",
+    "prod:maintain": "node lib/maintenance.js",
     "lint": "eslint --fix src --ext .js",
     "test": "yarn lint && jest --coverage",
     "heroku-postbuild": "yarn prod:build",
     "precommit": "yarn test",
-    "prepush": "yarn test && yarn prod:build"
+    "prepush": "yarn test && yarn prod:build && yarn prod:maintain"
   },
   "jest": {
     "testRegex": "test/.+.test.js"
