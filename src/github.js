@@ -7,17 +7,19 @@ import {
 export default class GithubHelper {
 
   async createBlobs(data) {
-    const promises = [JSON.stringify(data.tweets),
-      BuildMd.transformData(data.time.yesterdayDate, data.tweets, data.users),
+    const promises = [await JSON.stringify(data.tweets),
+      await BuildMd.transformData(data.time.yesterdayDate, data.tweets, data.users),
     ]
+
     try {
       return bluebird.map(promises, async (item, i) => {
+        const buffer = await new Buffer(item).toString('base64')
         const promiseData = (await this
           .client
           .gitdata
           .createBlob({
             ...this.config,
-            content: new Buffer(item).toString('base64'),
+            content: buffer,
             encoding: 'base64',
           })).data
 
@@ -117,14 +119,14 @@ export default class GithubHelper {
         token: this.token,
       })
       const headSha = await this.getLatestCommitSha()
-
+      
       await this
         .createBlobs(data)
         .then(blobs => this.getTree(data.time, headSha, blobs))
         .then(tree => this.createTree(tree))
         .then(createdTree => this.createCommit(createdTree, data.time, headSha))
         .then(commit => this.updateReference(commit))
-
+        
       return {
         success: true,
       }

@@ -41,6 +41,7 @@ describe('util function tests', () => {
     	const data = {
     		initRun: generateTimeProps(getTime(date, 'YYYY-MM-DD'), undefined, undefined),
     		normalDate: generateTimeProps(modifyDate(date, -2, 'days').format('YYYY-MM-DD'), modifyDate(date, -3, 'hours').startOf('hour'), getTime(date).startOf('day')),
+    		afterMidnight: generateTimeProps(modifyDate(date, -2, 'days').format('YYYY-MM-DD'), modifyDate(date, -3, 'hours').startOf('hour'), modifyDate(date, -1, 'days').startOf('day')),
     		deleteDate: generateTimeProps(modifyDate(date, -12, 'days').format('YYYY-MM-DD'), modifyDate(date, -1, 'hours').startOf('hour'), modifyDate(date, -11, 'days'))
     	}
 
@@ -54,11 +55,18 @@ describe('util function tests', () => {
         	todayDate: date.format('YYYY-MM-DD')
         })
 
-        expect(createTimeObj(data.deleteDate)).toMatchObject({
+         expect(createTimeObj(data.deleteDate)).toMatchObject({
         	deleteDate: modifyDate(date, -12, 'days').format('YYYY-MM-DD'),
         	now: expect.anything(),
         	todayDate: date.format('YYYY-MM-DD'),
         	yesterdayDate: modifyDate(date, -1, 'days').format('YYYY-MM-DD'),
+        })
+      
+
+        expect(createTimeObj(data.afterMidnight)).toMatchObject({
+        	now: expect.anything(),
+        	todayDate: expect.anything(),
+        	yesterdayDate: expect.anything(),
         })
       
     })

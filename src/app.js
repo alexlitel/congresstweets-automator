@@ -66,7 +66,7 @@ export class App {
                         .flatten()
                         .uniqBy('id')
                         .value()
-
+                        
         await new GithubHelper(this.config.GITHUB_TOKEN, this.config.GITHUB_CONFIG).run(data)
         newData.lastUpdate = data.time.todayDate
       }

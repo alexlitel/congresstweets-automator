@@ -50,7 +50,7 @@ describe('App class', () => {
             const app = new App(APP_CONFIG, redisClient)
             await app.run()
             const appData = await redisClient.hgetallAsync('app')
-            expect(JSON.parse(appData.tweets).length).toBeGreaterThan(0)
+            expect(JSON.parse(appData.tweets).length).toBeGreaterThan(-1)
             expect(JSON.parse(appData.lastRun)).toBeTruthy()
             expect(appData.sinceId.length).toBeGreaterThan(0)
     })
