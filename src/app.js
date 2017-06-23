@@ -54,19 +54,15 @@ export class App {
         newData.sinceId = twitterData.sinceId
       }
 
-      if (twitterData.tweets.length > 0 || data.time.yesterdayDate) {
+      if (data.time.yesterdayDate || twitterData.tweets.length > 0) {
         newData.tweets = _.uniqBy(data.time.yesterdayDate
-                                    ? twitterData.tweets[2]
+                                    ? twitterData.tweets.today
                                     : [...data.tweets, ...twitterData.tweets], 'id')
       }
 
       if (data.time.yesterdayDate) {
-        data.tweets = _.chain(twitterData.tweets)
-                        .slice(0, -1)
-                        .flatten()
-                        .uniqBy('id')
-                        .value()
-                        
+        data.tweets = _.uniqBy([...data.tweets, ...twitterData.tweets.yesterday], 'id')
+
         await new GithubHelper(this.config.GITHUB_TOKEN, this.config.GITHUB_CONFIG).run(data)
         newData.lastUpdate = data.time.todayDate
       }

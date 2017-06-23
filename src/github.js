@@ -8,7 +8,7 @@ export default class GithubHelper {
 
   async createBlobs(data) {
     const promises = [await JSON.stringify(data.tweets),
-      await BuildMd.transformData(data.time.yesterdayDate, data.tweets, data.users),
+      await BuildMd.generateMeta(data.time.yesterdayDate),
     ]
 
     try {
@@ -119,14 +119,14 @@ export default class GithubHelper {
         token: this.token,
       })
       const headSha = await this.getLatestCommitSha()
-      
+
       await this
         .createBlobs(data)
         .then(blobs => this.getTree(data.time, headSha, blobs))
         .then(tree => this.createTree(tree))
         .then(createdTree => this.createCommit(createdTree, data.time, headSha))
         .then(commit => this.updateReference(commit))
-        
+
       return {
         success: true,
       }

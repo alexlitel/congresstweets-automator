@@ -133,7 +133,7 @@ describe('Twitter Helper class methods', () => {
         await expect(twitterClient.run(data)).resolves.toEqual({
             sinceId: expect.any(String),
             success: true,
-            tweets: expect.any(Array),
+            tweets:  expect.anything(),
         })
     })
     test('New user run process', async() => {
@@ -143,7 +143,7 @@ describe('Twitter Helper class methods', () => {
         })).resolves.toEqual({
             sinceId: undefined,
             success: true,
-            tweets: expect.any(Array),
+            tweets: expect.anything(),
         })
     })
 })
