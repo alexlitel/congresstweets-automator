@@ -14,9 +14,9 @@
     "prod:maintain": "node lib/maintenance.js",
     "lint": "eslint --fix src --ext .js",
     "test": "yarn lint && jest --coverage",
-    "heroku-postbuild": "yarn prod:build",
+    "heroku-postbuild": "yarn prod:build && yarn prod:maintain",
     "precommit": "yarn test",
-    "prepush": "yarn test && yarn prod:build && yarn prod:maintain"
+    "prepush": "yarn test && yarn prod:build"
   },
   "jest": {
     "testRegex": "test/.+.test.js"

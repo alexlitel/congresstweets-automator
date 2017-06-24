@@ -1,5 +1,4 @@
 import './load-env'
-import { isProd } from './util'
 
 export const TWITTER_CONFIG = {
   access_token: process.env.ACCESS_TOKEN || null,
@@ -13,7 +12,7 @@ export const LIST_ID = process.env.LIST_ID
 export const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
 export const GITHUB_TOKEN = process.env.GITHUB_TOKEN
 export const GITHUB_USER = process.env.GITHUB_USER
-export const SITE_REPO = isProd ? process.env.SITE_REPO : 'test'
+export const SITE_REPO = process.env.SITE_REPO || 'test'
 export const GITHUB_CONFIG = {
   owner: GITHUB_USER,
   repo: SITE_REPO,

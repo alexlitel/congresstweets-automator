@@ -42,7 +42,7 @@ export default class GithubHelper {
         .repos
         .getShaOfCommitRef({
           ...this.config,
-          ref: 'heads/gh-pages',
+          ref: 'heads/master',
         })).data.sha
     } catch (e) {
       return Promise.reject(e)
@@ -102,7 +102,7 @@ export default class GithubHelper {
         .gitdata
         .updateReference({
           ...this.config,
-          ref: 'heads/gh-pages',
+          ref: 'heads/master',
           sha,
           force: true,
         })
