@@ -60,7 +60,7 @@ test('Tweet class instantiates correctly', () => {
         screen_name: 'RepLukeMesser',
         time: '2017-06-13T16:42:43-04:00',
         link: 'https://www.twitter.com/RepLukeMesser/statuses/874728761534578688',
-        text: 'Great to talk with young Hoosiers as part of the Electric Cooperative Youth Tour! https://t.co/i9IIUtNaJw QT @wwvremc @RepLukeMesser #inytdc https://t.co/fIfzLwYB3K',
+        text: 'Great to talk with young Hoosiers as part of the Electric Cooperative Youth Tour! https://twitter.com/wwvremc/status/874723569179164672 QT @wwvremc @RepLukeMesser #inytdc http://pbs.twimg.com/media/DCOka8pVYAAVf8S.jpg',
         source: 'Twitter Web Client',
     })
     expect(new Tweet(testData.retweet)).toEqual({
@@ -68,7 +68,7 @@ test('Tweet class instantiates correctly', () => {
         screen_name: 'RepJayapal',
         time: '2017-06-13T16:42:31-04:00',
         link: 'https://www.twitter.com/AmeetSarpatwari/statuses/874728532336934914',
-        text: 'RT @AmeetSarpatwari @RepJayapal Thank you. Health policy scholars--regardless of political persuasion--think this secrecy does a disservice to all Americans. https://t.co/VVRpVta122',
+        text: 'RT @AmeetSarpatwari @RepJayapal Thank you. Health policy scholars--regardless of political persuasion--think this secrecy does a disservice to all Americans. https://twitter.com/RepJayapal/status/874720122476384259',
         source: 'Twitter Web Client',
     })
 
@@ -77,7 +77,7 @@ test('Tweet class instantiates correctly', () => {
         screen_name: 'WaysandMeansGOP',
         time: '2017-06-13T16:44:06-04:00',
         link: 'https://www.twitter.com/WaysandMeansGOP/statuses/874729112040079360',
-        text: "It is time to reform Washington's broken tax code—to create jobs, increase paychecks, and grow our economy.\nhttps://t.co/36dRx905EX",
+        text: "It is time to reform Washington's broken tax code—to create jobs, increase paychecks, and grow our economy.\nhttps://waysandmeans.house.gov/taxreform/",
         source: 'TweetDeck',
     })
 })

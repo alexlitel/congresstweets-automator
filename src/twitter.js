@@ -5,6 +5,7 @@ import {
     getTime,
 } from './util'
 
+
 export class Tweet {
   static getLink(data, isRetweet) {
     const {
@@ -17,10 +18,27 @@ export class Tweet {
     return `https://www.twitter.com/${screenName}/statuses/${tweetId}`
   }
 
+  static replaceUrls(data) {
+    // eslint-disable-next-line no-useless-escape
+    return data.full_text.replace(/(\bhttps\:\/\/t\.co\/\w+\b)/gi, (match) => {
+      const nonMediaUrl = data.entities.urls.find(item => item.url === match)
+      if (!nonMediaUrl) {
+        if (!_.has(data, 'extended_entities.media')) return match
+        const mediaUrls = data.extended_entities.media.filter(item => item.url === match)
+        if (mediaUrls.length === 0) return match
+        return mediaUrls.map((item) => {
+          if (item.type === 'photo') return item.media_url
+          return `${item.media_url} ${_.minBy(item.video_info.variants, ['bitrate']).url}`
+        }).join(' ')
+      }
+      return nonMediaUrl.expanded_url
+    })
+  }
+
   static parseText(data, isRetweet, isQuote) {
-    if (isRetweet) return `RT @${data.retweeted_status.user.screen_name} ${data.retweeted_status.full_text}`
-    else if (isQuote) return `${data.full_text} QT @${data.quoted_status.user.screen_name} ${data.quoted_status.full_text}`
-    return data.full_text
+    if (isRetweet) return `RT @${data.retweeted_status.user.screen_name} ${this.replaceUrls(data.retweeted_status)}`
+    else if (isQuote) return `${this.replaceUrls(data)} QT @${data.quoted_status.user.screen_name} ${this.replaceUrls(data.quoted_status)}`
+    return this.replaceUrls(data)
   }
 
   constructor(data) {
@@ -65,6 +83,21 @@ export class TwitterHelper {
                 .client
                 .post(`/lists/members/${action}_all`,
                     props)).data
+    } catch (e) {
+      return Promise.reject(e)
+    }
+  }
+
+  async getListMembers() {
+    const props = {
+      list_id: this.listId,
+      count: 5000,
+    }
+    try {
+      return (await this
+                     .client
+                     .get('/lists/members',
+                      props)).data.users
     } catch (e) {
       return Promise.reject(e)
     }
