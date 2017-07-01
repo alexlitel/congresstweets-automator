@@ -75,6 +75,11 @@ class Maintenance {
         }
         if (changes.old.length > 0) {
           await twitterClient.updateList('destroy', changes.old.map(account => account.id_str))
+          newData.tweets = newData
+                                  .tweets
+                                  .filter(tweet =>
+                                  !changes.old.map(account => account.screen_name.toLowerCase())
+                                        .includes(tweet.screen_name.toLowerCase()))
         }
         await redisClient.hmsetAsync('app', _.chain(newData)
                     .omitBy(v => _.isNil(v))
