@@ -70,7 +70,7 @@ To test the app, simply run `yarn test` to lint and run Jest tests and other fun
 If you come across any issues, don't hesitate to file any issue in this repo, make a pull request or [send an email](mailto:alexlitelATgmailDOTcom).
 
 ## Acknowledgements
-* Dataset was created with the help of the [@unitedstates/congress](https://github.com/unitedstates/congress) project.
+* Dataset was created with the help of the [@unitedstates/congress-legislators](https://github.com/unitedstates/congress-legislators) project.
 
 #### Todo
 - Automated maintenance process
