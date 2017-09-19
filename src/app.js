@@ -1,47 +1,33 @@
-import path from 'path'
-import fs from 'fs'
 import _ from 'lodash'
 import {
     TwitterHelper,
 } from './twitter'
 import GithubHelper from './github'
 import {
+    configureMaintenance,
+} from './maintenance'
+import {
     createTimeObj,
     getTime,
+    serializeObj,
+    unserializeObj,
 } from './util'
 
 
 export class App {
   async init() {
-    const users = await JSON.parse(fs.readFileSync(path.join(__dirname, '/../data/users-filtered.json')))
-    const obj = {
-      initDate: getTime().format('YYYY-MM-DD'),
-      lastRun: null,
-      lastUpdate: null,
-      sinceId: null,
-      tweets: [],
-      users,
-    }
-    await this.redisClient.hmsetAsync('app', _.mapValues(obj, v => JSON.stringify(v)))
-    return obj
+    return configureMaintenance(this.redisClient, this.config, { app: true }).run()
   }
 
   async run() {
     try {
       const isActive = !!await this.redisClient.existsAsync('app')
-
-      const data = await (isActive ?
-                this.redisClient
-                .hgetallAsync('app')
-                .then(obj =>
-                  // eslint-disable-next-line no-confusing-arrow
-                    _.mapValues(obj, v =>
-                        v !== undefined && v !== 'undefined' ? JSON.parse(v) : null)) : this.init()
-            )
+      const data = isActive ?
+                unserializeObj(await this.redisClient.hgetallAsync('app'))
+              : await this.init()
 
       data.time = _.chain(data)
                 .pick(['initDate', 'lastRun', 'lastUpdate'])
-                // eslint-disable-next-line no-confusing-arrow
                 .mapValues(v => _.isNil(v) ? null : getTime(v))
                 .thru(timeProps => createTimeObj(timeProps))
                 .value()
@@ -50,41 +36,53 @@ export class App {
       const twitterData = await twitterClient.run(data)
 
       const newData = {}
+
       if (twitterData.sinceId !== undefined && twitterData.sinceId !== 'undefined') {
         newData.sinceId = twitterData.sinceId
       }
 
       if (data.time.yesterdayDate || twitterData.tweets.length > 0) {
-        newData.tweets = _.uniqBy(data.time.yesterdayDate
-                                    ? twitterData.tweets.today
-                                    : [...data.tweets, ...twitterData.tweets], 'id')
+        newData.tweets = await _.uniqBy(data.time.yesterdayDate ?
+                    twitterData.tweets.today :
+                    data.tweets.concat(twitterData.tweets), 'id')
       }
 
       if (data.time.yesterdayDate) {
-        data.tweets = _.uniqBy([...data.tweets, ...twitterData.tweets.yesterday], 'id')
+        newData.collectSince = newData.sinceId
+
+        if (this.options.collectReplies) {
+          data.ids = {}
+          data.ids.all = data.accounts.map(account => account.id)
+          data.ids.toCheck = (await twitterClient
+                                    .getActiveUsers(data.time))
+                                    .map(account => account.id_str)
+
+          twitterData.tweets.yesterday = (await twitterClient
+                                          .run(data, { collectReplies: true })).tweets
+                                          .concat(twitterData.tweets.yesterday)
+        }
+
+        data.tweets = await _.uniqBy(data.tweets.concat(twitterData.tweets.yesterday), 'id')
 
         await new GithubHelper(this.config.GITHUB_TOKEN, this.config.GITHUB_CONFIG).run(data)
         newData.lastUpdate = data.time.todayDate
       }
 
       newData.lastRun = data.time.now
-      await this.redisClient.hmsetAsync('app', _.chain(newData)
-                                                .omitBy(v => _.isNil(v))
-                                                .mapValues(v => JSON.stringify(v))
-                                                .value())
+      await this.redisClient.hmsetAsync('app', serializeObj(newData))
+      return true
     } catch (e) {
       // eslint-disable-next-line no-console
       console.log('error with running', e)
-      return e
+      return Promise.reject(e)
     }
-    await this.redisClient.quit()
-    return true
   }
 
-  constructor(config, redisClient) {
+  constructor(config, redisClient, opts = {}) {
     this.config = config
     this.redisClient = redisClient
+    this.options = opts
   }
 }
 
-export const appBuilder = (config, redisClient) => new App(config, redisClient)
+export const appBuilder = (config, redisClient, opts) => new App(config, redisClient, opts)

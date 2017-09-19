@@ -1,93 +1,339 @@
 import fs from 'fs'
 import path from 'path'
-import '../src/load-env'
+import MockApi from './helpers/api-mock'
 import GithubHelper from '../src/github'
 import {
-    getTime,
-} from '../src/util'
+    testConfig,
+} from './util/test-util'
 import {
-    GITHUB_TOKEN,
-    GITHUB_CONFIG,
-} from '../src/config'
-
+    nativeClone,
+} from '../src/util'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 60000
 
+const data = {}
+let mockApi
+
+const loadData = () => {
+  data.users = JSON.parse(fs.readFileSync(path.join(__dirname, '/../data/users.json')))
+  data.time = {
+    yesterdayDate: '2017-02-02',
+  }
+  data.tweets = JSON.parse(fs.readFileSync(path.join(__dirname, '/data/tweets-parsed.json')))
+}
+
+beforeAll(() => {
+  loadData()
+  mockApi = new MockApi('github')
+  mockApi.init()
+})
+
+afterAll(() => {
+  jest.resetModules()
+  MockApi.cleanMocks()
+})
+
+
 describe('Github helper methods', () => {
-  const githubClient = new GithubHelper(GITHUB_TOKEN, GITHUB_CONFIG)
-  const data = {}
-  
+  let githubClient
+  const mockFns = {}
+
   beforeAll(() => {
+    githubClient = new GithubHelper(testConfig.GITHUB_TOKEN, testConfig.GITHUB_CONFIG)
     githubClient.client.authenticate({
       type: 'oauth',
       token: githubClient.token,
     })
-    data.users = JSON.parse(fs.readFileSync(path.join(__dirname, './data/users.json')))
-    data.tweets = JSON.parse(fs.readFileSync(path.join(__dirname, '/data/tweets-parsed.json')))
-    data.time = {
-      yesterdayDate: getTime('2017-06-01', 'YYYY-MM-DD'),
+  })
+
+  beforeEach(() => {
+    jest.resetAllMocks()
+
+    // eslint-disable-next-line
+    for (const key of Object.keys(mockFns)) {
+      mockFns[key].mockRestore()
     }
+
+    mockFns.createBlob = jest.spyOn(githubClient.client.gitdata, 'createBlob')
+    mockFns.createCommit = jest.spyOn(githubClient.client.gitdata, 'createCommit')
+    mockFns.createTree = jest.spyOn(githubClient.client.gitdata, 'createTree')
+    mockFns.updateReference = jest.spyOn(githubClient.client.gitdata, 'updateReference')
+    mockFns.getTree = jest.spyOn(githubClient.client.gitdata, 'getTree')
+    mockFns.getShaOfCommitRef = jest.spyOn(githubClient.client.repos, 'getShaOfCommitRef')
+    mockApi.resetOptions()
   })
 
-  test('Get last commit sha', async () => {
-    await expect(githubClient.getLatestCommitSha()).resolves.toEqual(expect.any(String))
+  describe('Constructor method', () => {
+    test('Throws error if missing required properties', () => {
+      expect(() => new GithubHelper()).toThrow('Missing required props for Github client')
+      expect(() => new GithubHelper('foo', null)).toThrow('Missing required props for Github client')
+      expect(() => new GithubHelper('foo', {
+        repo: 'whatever',
+      })).toThrow('Missing required props for Github client')
+      expect(() => new GithubHelper('foo', {
+        owner: 'test',
+      })).toThrow('Missing required props for Github client')
+    })
   })
 
-  test('Create blobs', async () => {
-    const blobs = [{
-      sha: expect.any(String),
-      url: expect.any(String),
-      path: `data/${data.time.yesterdayDate}.json`,
-      type: 'blob',
-      mode: '100644',
-    }, {
-      sha: expect.any(String),
-      url: expect.any(String),
-      path: `_posts/${data.time.yesterdayDate}--tweets.md`,
-      type: 'blob',
-      mode: '100644',
-    }]
-    await expect(githubClient.createBlobs(data)).resolves.toEqual(blobs)
+  describe('checkValidity', () => {
+    test('Throws error if missing properties', () => {
+      const missingAuth = {}
+      const missingUserRepo = {
+        token: 'foo',
+      }
+      const missingUser = {
+        token: 'foo',
+        config: {
+          repo: 'foo',
+        },
+      }
+      const missingRepo = {
+        token: 'foo',
+        config: {
+          owner: 'foo',
+        },
+      }
+      expect(() => githubClient.checkValidity.call(missingAuth)).toThrow('Missing Github auth token')
+      expect(() => githubClient.checkValidity.call(missingUserRepo)).toThrow('Missing Github user and repo')
+      expect(() => githubClient.checkValidity.call(missingUser)).toThrow('Missing Github user')
+      expect(() => githubClient.checkValidity.call(missingRepo)).toThrow('Missing Github repo')
+    })
+
+    test('Valid if all properties are there', () => {
+      expect(githubClient.checkValidity()).toEqual(true)
+    })
   })
 
-  test('Get tree', async () => {
-    const treeObj = [{
-      mode: '100644',
-      path: 'README.md',
-      sha: expect.any(String),
-      size: expect.any(Number),
-      type: 'blob',
-      url: expect.any(String),
-    }]
-    const blobs = await githubClient.createBlobs(data)
-    const sha = await githubClient.getLatestCommitSha()
-    await expect(githubClient.getTree(data.time, sha, blobs))
-          .resolves.toEqual(expect.arrayContaining(treeObj))
+  describe('Gitdata methods', () => {
+    describe('createBlobs', () => {
+      test('Create blobs from data', async () => {
+        const createdBlobs = await githubClient.createBlobs(data)
+
+        expect(mockFns.createBlob).toHaveBeenCalledTimes(2)
+        expect(mockFns.createBlob).toBeCalledWith(expect.objectContaining({
+          content: expect.any(String),
+          ...githubClient.config,
+        }))
+        expect(createdBlobs).toHaveLength(2)
+        expect(createdBlobs.every(blob => !!blob.sha && !!blob.url)).toEqual(true)
+        expect(createdBlobs[0].path).toEqual(`data/${data.time.yesterdayDate}.json`)
+        expect(createdBlobs[1].path).toEqual(`_posts/${data.time.yesterdayDate}--tweets.md`)
+      })
+
+      test('Create blobs when self-updating class option set', async () => {
+        const locData = JSON.parse(JSON.stringify(data))
+        locData.toWrite = {}
+        locData.toWrite.users = []
+        locData.toWrite['users-filtered'] = []
+        locData.toWrite['historical-users'] = []
+        locData.toWrite['historical-users-filtered'] = []
+        const createdBlobs = await githubClient.createBlobs(locData, true)
+
+        expect(githubClient.client.gitdata.createBlob).toHaveBeenCalledTimes(4)
+        expect(createdBlobs).toHaveLength(4)
+        expect(createdBlobs.every(blob => !!blob.sha && !!blob.url)).toEqual(true)
+        expect(createdBlobs[0].path).toEqual('data/users.json')
+        expect(createdBlobs[1].path).toEqual('data/users-filtered.json')
+        expect(createdBlobs[2].path).toEqual('data/historical-users.json')
+        expect(createdBlobs[3].path).toEqual('data/historical-users-filtered.json')
+      })
+    })
+
+    describe('getTree', () => {
+      test('Retrieves tree', async () => {
+        const blobs = ['data/DATE.json', '_posts/DATE--tweets.md']
+                    .map(x => ({
+                      sha: 'foo',
+                      url: 'foo',
+                      path: x.replace('DATE', '2017-02-02'),
+                      type: 'blob',
+                      mode: '100644',
+                    }))
+        const tree = await githubClient.getTree(data.time, 'foo', blobs)
+
+        expect(tree).toEqual(expect.arrayContaining(blobs))
+        expect(tree).toHaveLength(11)
+      })
+
+      test('Retrieves tree and omits files from X date when deleteDate set', async () => {
+        const blobs = ['data/DATE.json', '_posts/DATE--tweets.md']
+                    .map(x => ({
+                      sha: 'foo',
+                      url: 'foo',
+                      path: x.replace('DATE', '2017-02-02'),
+                      type: 'blob',
+                      mode: '100644',
+                    }))
+        const locData = nativeClone(data)
+        locData.time.deleteDate = '2017-06-01'
+        const tree = await githubClient.getTree(locData.time, 'foo', blobs)
+
+        expect(tree).toEqual(expect.arrayContaining(blobs))
+        expect(tree).toEqual(expect.arrayContaining(blobs))
+        expect(tree.map(item => item.path)).not.toContain('data/2017-06-01.json')
+        expect(tree).toHaveLength(9)
+      })
+
+      test('Retrieves tree with overwritten files when self-updating class option set', async () => {
+        mockApi.options = {
+          recursive: true,
+        }
+
+        const blobs = ['users',
+          'users-filtered',
+          'historical-users',
+          'historical-users-filtered',
+        ]
+                    .map(x => ({
+                      sha: 'foo',
+                      url: 'foo',
+                      path: `data/${x}.json`,
+                      type: 'blob',
+                      mode: '100644',
+                    }))
+
+        const tree = await githubClient.getTree(data.time, 'foo', blobs, true)
+
+        expect(tree).toEqual(expect.arrayContaining(blobs))
+        expect(tree.filter(item => item.path.includes('historical-users-filtered'))).toHaveLength(1)
+        expect(tree).toHaveLength(13)
+      })
+    })
+
+    describe('createTree', () => {
+      test('Creates tree', async () => {
+        const blobs = ['users',
+          'users-filtered',
+          'historical-users',
+          'historical-users-filtered',
+        ]
+                    .map(x => ({
+                      sha: 'foo',
+                      url: 'foo',
+                      path: `data/${x}.json`,
+                      type: 'blob',
+                      mode: '100644',
+                    }))
+
+        const createdTree = await githubClient.createTree(blobs)
+
+        expect(mockFns.createTree).toBeCalledWith(expect.objectContaining({
+          ...githubClient.config,
+          tree: blobs,
+        }))
+        expect(createdTree).toEqual(expect.any(String))
+      })
+    })
+
+
+    describe('createCommit', () => {
+      test('Creates commit', async () => {
+        const commit = await githubClient.createCommit('foo', data.time, 'foo2')
+
+        expect(mockFns.createCommit).toBeCalledWith(expect.objectContaining({
+          ...githubClient.config,
+          message: `Add tweets for ${data.time.yesterdayDate}`,
+          parents: ['foo2'],
+        }))
+        expect(commit).toEqual(expect.any(String))
+      })
+
+      test('Creates commit with multiple parents', async () => {
+        const commit = await githubClient.createCommit('foo', data.time, ['foo2', 'foo3'])
+
+        expect(mockFns.createCommit).toBeCalledWith(expect.objectContaining({
+          ...githubClient.config,
+          message: `Add tweets for ${data.time.yesterdayDate}`,
+          parents: ['foo2', 'foo3'],
+        }))
+        expect(commit).toEqual(expect.any(String))
+      })
+
+      test('Creates commit with custom message as argument', async () => {
+        const commit = await githubClient.createCommit('foo', data.time, 'foo2', 'Argument message')
+
+        expect(mockFns.createCommit).toBeCalledWith(expect.objectContaining({
+          ...githubClient.config,
+          message: 'Argument message',
+          parents: ['foo2'],
+        }))
+        expect(commit).toEqual(expect.any(String))
+      })
+    })
+
+    describe('updateReference', () => {
+      test('Updates reference', async () => {
+        const updatedRef = await githubClient.updateReference('foo')
+
+        expect(mockFns.updateReference).toBeCalledWith(expect.objectContaining({
+          sha: 'foo',
+          ref: 'heads/master',
+        }))
+        expect(updatedRef).toEqual(expect.any(Object))
+      })
+    })
+  })
+
+  describe('Repo methods', () => {
+    describe('getLatestCommitSha', () => {
+      test('Retrieves sha of last commit', async () => {
+        const commitSha = await githubClient.getLatestCommitSha()
+
+        expect(mockFns.getShaOfCommitRef).toBeCalledWith(expect.objectContaining({
+          ref: 'heads/master',
+          ...githubClient.config,
+        }))
+        expect(commitSha).toEqual(expect.any(String))
+      })
+    })
   })
 
 
-  test('Create tree', async () => {
-    const sha = await githubClient.getLatestCommitSha()
-    const tree = await githubClient.getTree(data.time, sha, [])
-    await expect(githubClient.createTree(tree)).resolves.toEqual(expect.any(String))
-  })
+  describe('Run process', () => {
+    test('Regular run process', async () => {
+      const runProcess = await githubClient.run(data)
 
-  test('Create commit', async () => {
-    const sha = await githubClient.getLatestCommitSha()
-    const tree = await githubClient.getTree(data.time, sha, [])
-    const newTree = await githubClient.createTree(tree)
-    await expect(githubClient.createCommit(newTree, data.time, sha, 'Added records for test')).resolves.toEqual(expect.any(String))
-  })
+      expect(mockFns.createBlob).toHaveBeenCalledTimes(2)
+      expect(mockFns.createCommit).toBeCalled()
+      expect(mockFns.createTree).toBeCalled()
+      expect(mockFns.updateReference).toBeCalled()
+      expect(mockFns.getTree).toBeCalled()
+      expect(mockFns.getShaOfCommitRef).toBeCalled()
+      expect(mockFns.createCommit).toBeCalledWith(expect.objectContaining({
+        message: `Add tweets for ${data.time.yesterdayDate}`,
+      }))
 
-  test('Update reference', async () => {
-    const sha = await githubClient.getLatestCommitSha()
-    const tree = await githubClient.getTree(data.time, sha, [])
-    const newTree = await githubClient.createTree(tree)
-    const commit = await githubClient.createCommit(newTree, data.time, sha, 'Added records for test')
-    expect(await githubClient.updateReference(commit)).toEqual(expect.any(Object))
-  })
+      expect(runProcess).toEqual({
+        success: true,
+      })
+    })
 
-  test('Run process', async () => {
-    	await expect(githubClient.run(data)).resolves.toEqual({ success: true })
+    test('Self-updating run process with custom message', async () => {
+      const locData = nativeClone(data)
+      locData.toWrite = {}
+      locData.toWrite.users = []
+      locData.toWrite['users-filtered'] = []
+      locData.toWrite['historical-users'] = []
+      locData.toWrite['historical-users-filtered'] = []
+      const options = {}
+      options.recursive = true
+      options.message = 'Custom message'
+
+      const runProcess = await githubClient.run(locData, options)
+
+      expect(mockFns.createBlob).toHaveBeenCalledTimes(4)
+      expect(mockFns.createCommit).toBeCalled()
+      expect(mockFns.createTree).toBeCalled()
+      expect(mockFns.updateReference).toBeCalled()
+      expect(mockFns.getTree).toBeCalled()
+      expect(mockFns.getShaOfCommitRef).toBeCalled()
+      expect(mockFns.createCommit).toBeCalledWith(expect.objectContaining({
+        message: 'Custom message',
+      }))
+      expect(runProcess).toEqual({
+        success: true,
+      })
+    })
   })
 })

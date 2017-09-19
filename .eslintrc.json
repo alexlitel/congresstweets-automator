@@ -9,8 +9,12 @@
         "no-tabs": 0,
         "no-mixed-spaces-and-tabs": 0,
         "no-underscore-dangle": 0,
+        "no-confusing-arrow": 0,
+        "no-await-in-loop": 0,
+        "no-param-reassign": 0,
+        "no-useless-escape": 0,
         "no-undef": 0,
-        "no-confusing-arrow": ["error", {"allowParens": true}]
+        "radix": ["error", "as-needed"]
     },
     "env": {
         "browser": false,
