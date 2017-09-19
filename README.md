@@ -2,24 +2,64 @@
 [![Build Status](https://img.shields.io/travis/alexlitel/congresstweets-automator.svg?style=flat-square)](https://travis-ci.org/alexlitel/congresstweets-automator)
 [![Coverage Status](https://img.shields.io/coveralls/alexlitel/congresstweets-automator.svg?style=flat-square)](https://coveralls.io/github/alexlitel/congresstweets-automator?branch=master)
 
-This repo houses the backend portion of a project collecting the daily tweets of both houses of Congress (plus joint committees), encompassing 1,000+ campaign, office, committee and party accounts. It's designed to be used in concert with the [Tweets of Congress site](https://github.com/alexlitel/congresstweets), which features JSON datasets compiled daily by this app. The automator is alpha-ish and will probably change considerably.
+This repo houses the backend portion of a project collecting the daily tweets of both houses of Congress (plus joint committees), encompassing 1,000+ campaign, office, committee and party accounts. It's designed to be used in concert with the [Tweets of Congress site](https://github.com/alexlitel/congresstweets), which features JSON datasets compiled daily by this app.
 
 Licensed under [MIT](http://www.opensource.org/licenses/mit-license.php)
 
 ## How it works
-This project is designed to run on a service like Heroku, interfacing with the Twitter API at a set interval to make sure all tweets are captured. The app culls data from a Twitter list following all the relevant congressional accounts, the most anonymous way of following a Twitter account. If you follow this strategy (designed to minimizing chances of blocking), I recommend using an undetectable private Twitter list in combination with either a private Twitter account or a burner account you never use. This app does not presently initialize the list or automate following process, though I might create some version of the latter in the future.
+This project is designed to run on a service like Heroku, interfacing with the Twitter API at a set interval to make sure tweets are captured. The app culls data from a Twitter list following all the relevant congressional accounts, the most anonymous way of following a Twitter account. If you follow this strategy (designed to minimizing chances of blocking), I recommend using an undetectable private Twitter list in combination with either a private Twitter account or a burner account you never use. This app does not presently initialize the list or automate following process, though I might create some version of the latter in the future.
 
-To track tweets and a few other data points, the app uses a small Redis store that contains some stringified data that gets parsed when the app runs. To reduce unwieldiness, the app transforms the received Twitter tweet data into much smaller objects with a few properties like text, screen name, date, and id. It includes both retweets and full text of quoted tweets. At the end of the day (EST), the app empties out the previous day's tweet day into JSON dumps of tweets (generated using data from `data/users-filtered.json`, stored on the Redis store):
-* chamber
-* account type
-  * committees: name, party
-  * caucuses: party, name, campaign or office account
-  * members: state, name (and party), campaign or office account
-  * party: party, campaign or office account
-* screen_name
+To track tweets and a few other data points, the app uses a small Redis store that contains some stringified data that gets parsed when the app runs. To reduce unwieldiness, the app transforms the received Twitter tweet data into much smaller objects with a few properties like text, screen name, date, and id. It includes both retweets and full text of quoted tweets. At the end of the day (EST), the app empties out the previous day's tweet day into JSON dumps of tweets (generated using data from `data/users.json`, stored on the Redis store).
 
-The app uses the Github API to commit JSON data (and a small MD file/Jekyll post for some frontend/RSS stuff) to the frontend repo. I have set up and recommend a secondary account so you do not have 30 extra commits at the end of the month on your page. This app collects thousands of tweets daily, so to prevent the front-end repo with the data from getting too big, a future version will cull old material (including modifying the commit history to excise the old data) from the repo.
+The app uses the Github API to commit JSON data (and a small MD file/Jekyll post for some frontend/RSS stuff) to the frontend repo. I have set up and recommend a secondary account so you do not have 30 extra commits at the end of the month on your page.
 
+*Note: By default, the app does not collect replies to tweets from users outside the list, though there is a configurable option to do so.*
+
+### Maintenance
+In addition to the app collating tweets from a list, there is a highly customizable maintenance process that allows for the easy updating and organization of user datasets and the Twitter list and Redis store powering the project. The maintenance process checks the local user datasets against the Twitter list, and current legislator and social media datasets from [@unitedstates/congress-legislators](https://github.com/unitedstates/congress-legislators) to look for outdated information, and if there is any outdated info, will update the datasets accordingly. Server-side or with a local Redis store, this process checks for reactivated and deactivated accounts, and deletes any accounts from the current user dataset that have been were deactivated long enough ago (more than 30 days) for Twitter to delete the account from its servers.
+
+In addition to maintaining the datasets, the the process handles store and list initialization, and post-build updates of the store. Depending on the environment and configuration, the maintenance process can update files and/or store, and commit the updated datasets to Github with a message and body.
+
+The maintenance process' behavior can be modified based on the options described in the section below.
+
+
+### App/Maintenance options
+There are a number of options that you can pass to the app and maintenance processes to customize their behavior. The options are passed as flags when running the `update` or `main` files (i.e. `node lib/update --exampleFlag=foo` or `babel-node src/update.js --exampleFlag=foo`, etc).
+
+##### App
+* **`collect-replies`**: allows app to collect replies to tweets from accounts from users outside the list. 
+    
+  *aliases: `c`, `cr`, `collect`, `collectreplies`*
+
+##### Maintenance
+* **`format-only`**: in local environment, simply sorts the dataset files tidily.
+
+   *aliases: `format`, `ff`, `formatfiles`, `formatonly`, `fo`, `fmt`*
+   
+* **`has-bot`**: allows for saving the list-related changes from the self-updating maintenance process to the store, which can be used for a Twitter bot that sends out messages when an account is deactivated or renamed, or reactivated.
+
+   *aliases: `hb`, `hasbot`, `bot`*
+   
+* **`init-list`**: in local environment, allows for the initialization of a Twitter list, and appends the list `id_str` as a `LIST_ID` in the `.env` file for later use. Optionally, you can set this option to a string value to customize the name of the list, otherwise it defaults to `congress`. 
+
+   *aliases: `initlist`, `il`, `list`, `init`*
+   
+* **`local-store`**: in local environment, allows for running the maintenance process with a redis store.
+
+   *aliases: `ls`, `localstore`, `nostore`*
+   
+* **`post-build`**: runs the maintenance process server-side to parse for post-build changes (whether to update store or list). `package.json` already includes `heroku-postbuild` script with this flag, so unless you are using another service, you probably do not needed to worry about this. 
+
+   *aliases: `p`, `post`, `pb`, `postbuild`*
+   
+* **`self-update`**: runs the self-updating maintenance process, which will check for changes in the list, remote datasets and revise local data accordingly.
+
+   *aliases: `s`, `self`, `su`, `selfupdate`*
+   
+* **`no-commit`**: allows for running the self-updating server-side maintenance process without triggering a commit. Revised datasets will be written to a file and the maintenance process is then called recursively with the post-build flag to update the store and list. 
+
+   *aliases: `n`, `nc`, `no`, `nocommit`*
+   
 ## Requisites
 You'll need the following for this to work:
 * Twitter API and secret keys
@@ -27,24 +67,29 @@ You'll need the following for this to work:
 * Twitter list
 * Github API key
 * Two Github repos: one for frontend and another backend
-	* Actually three, there's currently a private repo used for unit testing
-* Node (currently 8x, though may have to downgrade)
+* Node (currently 8x)
 * Yarn
 * Knowledge of Redis, APIs and the above things
 
 ## What is what
-* `/data` - directory with datasets, one of which (users.json) has all committees, MOCs, etc; the other (users-filtered.json) has a list of every major Congressional entity I've identified with Twitter accounts. You can quite easily use this as a basis for wide range of things, and the account list is a custom list for which I poured a number of hours of work into painstakingly accumulated a variety of accounts.
+* `/data` - directory with datasets. You can quite easily use the data as a basis for wide range of things, and the account list is a custom list for which I poured a number of hours of work into painstakingly accumulating a variety of accounts. It's also updated via some automated maintenance. Entities listed sorted by chamber and entity type, and depending on entity type, state, name, and party.
+  * `users` - contains all current committees, MOCs, caucuses, etc
+  * `users-filtered` - contains all current congressional entities with active twitter accounts
+  * `historical-users` - contains all committees, MOCs, caucuses, etc (both former and current) from the inception of the project, including a few exclusive data points including past screen names for accounts, whether an account was deleted, and previous properties for MOCs (i.e. party or chamber changes). I strongly recommend you use either this or the `historical-users-filtered` dataset if you to utilize the dataset for anything. If you do use the this dataset and associated accounts, make sure you use the `id` key rather than `screen_name`, which can very well change
+  * `historical-users-filtered` - current and former congressional entites with twitter accounts
 * `/src` - the directory with app source code
-	* `app` - app class and methods for initialization and running
+  * `app` - app class and methods for initialization and running
+  * `maintenance` - store/list initialiation, server and local maintenance processes
   * `redis` - singleton for redis store
   * `config` - configuration file containing various app settings
-  * `github` - file containing the methods and such for interacting with Github API
-  * `twitter` - file containing the methods and such for interacting with Twitter API
-  * `utils` - various utilities including time parsing et al
-  * `helpers` - helper functions/classes, namely building the MD file/Jekyll post
+  * `github` - methods and such for interacting with Github API
+  * `twitter` - methods and such for interacting with Twitter API
+  * `utils` - various utilities including time parsing, formatting, serialization, data, extraction et al
+  * `helpers` - helper functions/classes, namely building the MD file/Jekyll post and creating a message for the maintenance process
   * `load-env` - singleton to load environmental variables
   * `main` - running the app class
-* `/tests` - unit tests, which correspond to a number of files in the src
+  * `update` - running the maintenance class
+* `/tests` - unit tests, which correspond to a number of files in the src, as well as mock data, utils and a mock API helper
 
 ## Installation
 
@@ -61,16 +106,13 @@ You'll need the following environmental variables set in a `.env` file in the di
 * GITHUB_USER
 * SITE_REPO
 
-There's also a `TZ` variable for helping the `moment-timezone` module operate, but that defaults to `America/New_York` in its absence and isn't needed. Make sure you have Github repos set up for deployment, otherwise those parts of the app may fail. Deploying the app will automatically run unit tests and linters.
+**Optional variables**: There's a `TZ` variable for helping the `moment-timezone` module operate, but that defaults to `America/New_York` in its absence and isn't needed. For the self-updating maintenance process, there's a `SELF_REPO` variable for the quasi-recursive updates. Make sure you have Github repos set up for deployment, otherwise those parts of the app may fail. Deploying the app will automatically run unit tests and linters.
 
 ## Testing
-To test the app, simply run `yarn test` to lint and run Jest tests and other fun stuff.
+To test the app, simply run `yarn test` to lint and run Jest tests and other fun stuff. For v1, I created a mock API to handle the requests to Github content, Github's API and Twitter's API, and added a variety of utilities
 
 ## Issues, etc.
 If you come across any issues, don't hesitate to file any issue in this repo, make a pull request or [send an email](mailto:alexlitelATgmailDOTcom).
 
 ## Acknowledgements
 * Dataset was created with the help of the [@unitedstates/congress-legislators](https://github.com/unitedstates/congress-legislators) project.
-
-#### Todo
-- Automated maintenance process

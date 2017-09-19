@@ -6,15 +6,14 @@
   "license": "MIT",
   "scripts": {
     "start": "yarn dev:start",
-    "dev:run": "cross-env NODE_ENV=development babel-node",
-    "dev:start": "yarn dev:run src/main.js",
-    "dev:maintain": "yarn dev:run src/maintenance.js",
-    "prod:build": "rimraf lib dist && babel src -d lib --ignore .test.js && cross-env NODE_ENV=production",
+    "dev:start": "cross-env NODE_ENV=development babel-node src/main.js",
+    "dev:maintain": "cross-env NODE_ENV=development babel-node src/update.js",
+    "prod:build": "rimraf lib dist && babel src -d lib --ignore .test.js",
     "prod:start": "heroku local",
-    "prod:maintain": "node lib/maintenance.js",
+    "prod:maintain": "node lib/update.js",
     "lint": "eslint --fix src --ext .js",
     "test": "yarn lint && jest --coverage",
-    "heroku-postbuild": "yarn prod:build && yarn prod:maintain",
+    "heroku-postbuild": "yarn prod:build && cross-env NODE_ENV=production yarn prod:maintain --pb",
     "precommit": "yarn test",
     "prepush": "yarn test && yarn prod:build"
   },
@@ -26,13 +25,17 @@
     "dotenv": "^4.0.0",
     "ent": "^2.2.0",
     "flat": "^2.0.1",
-    "github": "^9.2.0",
+    "github": "^11.0.0",
     "lodash": "^4.17.4",
     "moment": "^2.18.1",
     "moment-timezone": "^0.5.13",
     "pretty": "^2.0.0",
+    "qs": "^6.5.0",
     "redis": "^2.7.1",
-    "twit": "^2.2.5"
+    "request-promise": "^4.2.1",
+    "twit": "^2.2.5",
+    "word-wrap": "^1.2.3",
+    "yargs-parser": "^7.0.0"
   },
   "devDependencies": {
     "babel-cli": "^6.24.1",
@@ -49,12 +52,13 @@
     "eslint-plugin-import": "^2.3.0",
     "husky": "^0.13.4",
     "jest": "^20.0.4",
+    "nock": "^9.0.14",
     "nodemon": "^1.11.0",
     "redis-mock": "^0.17.0",
     "rimraf": "^2.6.1"
   },
   "engines": {
     "node": "8.x",
-    "yarn": "0.24.6"
+    "yarn": "1.x"
   }
 }
