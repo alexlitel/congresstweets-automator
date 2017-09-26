@@ -1,7 +1,7 @@
 import bluebird from 'bluebird'
 import redis from 'redis'
 import {
-    REDIS_URL,
+  REDIS_URL,
 } from './config'
 
 bluebird.promisifyAll(redis.RedisClient.prototype)

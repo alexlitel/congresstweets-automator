@@ -2,20 +2,21 @@ import Twit from 'twit'
 import bluebird from 'bluebird'
 import _ from 'lodash'
 import {
-    checkDateValidity,
-    getTime,
-    trimLeadingSpace,
+  buildQueries,
+  checkDateValidity,
+  getTime,
+  trimLeadingSpace,
 } from './util'
 
 /* eslint-disable max-len */
 export class Tweet {
   static getLink(data, isRetweet) {
     const {
-            user: {
-                screen_name: screenName,
-            },
-            id_str: tweetId,
-        } =
+      user: {
+        screen_name: screenName,
+      },
+      id_str: tweetId,
+    } =
         isRetweet ? data.retweeted_status : data
     return `https://www.twitter.com/${screenName}/statuses/${tweetId}`
   }
@@ -90,38 +91,18 @@ export class TwitterHelper {
           case 'lists/statuses':
             errStr += 'cannot get list statuses'
             break
-          case 'statuses/user_timeline':
-            errStr += 'cannot get user statuses'
-            break
           case 'users/show':
             errStr += 'cannot show user profile'
+            break
+          case 'search/tweets':
+            errStr += 'invalid search query'
             break
           default:
             break
         }
-
         throw new Error(`${res.statusCode || 404} error ${errStr}`)
       }
       return data
-    } catch (e) {
-      return Promise.reject(e)
-    }
-  }
-
-  async getStatuses(sinceId = undefined, maxId = undefined) {
-    try {
-      if (!this.listId) { throw new Error('List id is missing') }
-
-      const props = _.omitBy({
-        list_id: this.listId,
-        count: 200,
-        tweet_mode: 'extended',
-        since_id: sinceId,
-        max_id: maxId,
-      }, _.isNil)
-
-
-      return await this.makeRequest('get', 'lists/statuses', props)
     } catch (e) {
       return Promise.reject(e)
     }
@@ -135,8 +116,7 @@ export class TwitterHelper {
 
       if (ids.length > 100) {
         return (await bluebird.map(_.chunk(ids, 100), async group =>
-                this.updateList(action, group),
-                )).pop()
+          this.updateList(action, group))).pop()
       }
 
       const props = {
@@ -161,21 +141,6 @@ export class TwitterHelper {
 
       if (noStatuses) props.skip_status = true
       return (await this.makeRequest('get', 'lists/members', props)).users
-    } catch (e) {
-      return Promise.reject(e)
-    }
-  }
-
-  async getActiveUsers(time) {
-    try {
-      if (!time || !time.yesterdayStart) throw new Error('Invalid time object')
-
-      return (await this.getListMembers()).filter(member =>
-                member.statuses_count > 0
-                && checkDateValidity(member.status.created_at,
-                                    time.yesterdayStart,
-                                    'sameOrAfter'),
-            )
     } catch (e) {
       return Promise.reject(e)
     }
@@ -213,7 +178,7 @@ export class TwitterHelper {
   async getUser(userId, screenName = false) {
     try {
       if (!userId) throw new Error('User id is missing')
-
+      // eslint-disable-next-line no-restricted-globals
       if (isNaN(+userId) && !screenName) screenName = true
 
       const props = {
@@ -237,125 +202,124 @@ export class TwitterHelper {
     }
   }
 
-  async getUserStatuses(userId, maxId, sinceId, params = {}) {
+  async searchStatuses(query, sinceId, maxId, params) {
     try {
-      if (!userId && !params.screen_name) throw new Error('User id is missing')
-
+      if (!query || !query.length) throw new Error('Query required for search')
       const props = _.omitBy({
-        user_id: userId,
-        count: 200,
+        q: query,
+        count: 100,
         tweet_mode: 'extended',
-        max_id: maxId,
+        result_type: 'recent',
         since_id: sinceId,
+        max_id: maxId,
         ...params,
       }, _.isNil)
 
-      return await this.makeRequest('get', 'statuses/user_timeline', props)
+      return await this.makeRequest('get', 'search/tweets', props)
+    } catch (e) {
+      return Promise.reject(e)
+    }
+  }
+
+  async searchIterate(query, sinceId, maxId, time) {
+    try {
+      let isValid = true
+      let collected = []
+      while (isValid) {
+        let lastTweet
+        const {
+          statuses: tweets,
+          search_metadata: metadata,
+        } = await this.searchStatuses(query, sinceId, maxId)
+        if (tweets.length) lastTweet = tweets[tweets.length - 1]
+        if (!tweets.length || lastTweet.id_str === maxId) isValid = false
+        else {
+          const mapped = await tweets.map(x => new Tweet(x))
+          collected = collected.concat(mapped)
+          if (metadata.next_results && tweets.length === 100) {
+            if (!sinceId && !checkDateValidity(lastTweet.created_at, time.todayDate)) {
+              isValid = false
+            } else {
+              maxId = metadata.next_results.match(/\d+/).pop()
+            }
+          } else {
+            isValid = false
+          }
+        }
+        if (!isValid) break
+      }
+      return collected
     } catch (e) {
       return Promise.reject(e)
     }
   }
 
 
+  switchAuthType() {
+    if (!this.client.config.app_only_auth) {
+      this.client.config = Object.assign(_.pick(
+        this.client.config,
+        ['consumer_key', 'consumer_secret'],
+      ), { app_only_auth: true })
+    } else {
+      this.client.config = this.config
+    }
+  }
+
   async run(data, options = {}) {
-    let isValid = true
-    const {
-            time,
-            sinceId,
-            lastRun,
-            collectSince,
-        } = data
-    const {
-            maintenance: isMaintenance,
-            collectReplies,
-        } = options
-    let newSinceId
-    let maxId
-    let count = 0
-    let tweetsCollection = time.yesterdayDate && !collectReplies ? {
-      yesterday: [],
-      today: [],
-    } : []
-    let ids
-    let params
+    try {
+      const {
+        time,
+        collectSince,
+        accounts,
+      } = data
+      const {
+        maintenance: isMaintenance,
+      } = options
+      const sinceId = isMaintenance ? collectSince : data.sinceId
+      let count = 0
+      let tweetsCollection = time.yesterdayDate ? {
+        yesterday: [],
+        today: [],
+      } : []
+      let newSinceId
+      const maxId = isMaintenance && data.sinceId ? data.sinceId : null
+      const queries = buildQueries(isMaintenance
+        ? accounts
+        : this.listId)
 
-    while (isValid) {
-      try {
-        let tweets
-        let lastTweet
-        if (isMaintenance || collectReplies) {
-          if (!ids) ids = data.ids.toCheck
-          if (!params) params = isMaintenance ? { } : { include_rts: false }
-          tweets = await this.getUserStatuses(ids[count],
-                                              maxId,
-                                              collectSince,
-                                              params)
-        } else {
-          tweets = await this.getStatuses(sinceId, maxId)
-          count += 1
-        }
-
+      if (isMaintenance) await this.switchAuthType()
+      while (count < queries.length) {
+        const tweets = await this.searchIterate(queries[count], sinceId, maxId, time)
         if (tweets.length) {
-          if (count === 1 && !isMaintenance) newSinceId = tweets[0].id_str
-          lastTweet = tweets[tweets.length - 1]
-        }
-        if (!tweets.length || lastTweet.id_str === maxId) break
-        else {
-          let changeCount
-          if (time.yesterdayDate && !collectReplies) {
+          if (!isMaintenance && !newSinceId) newSinceId = tweets[0].id
+          if (time.yesterdayDate) {
             tweetsCollection = tweets.reduce((p, c) => {
-              const { created_at: createdAt } = c
-              if (checkDateValidity(createdAt, time.todayDate)) {
-                p.today.push(new Tweet(c))
-              } else p.yesterday.push(new Tweet(c))
+              if (c.time.includes(time.todayDate)) {
+                p.today.push(c)
+              } else p.yesterday.push(c)
               return p
             }, tweetsCollection)
           } else {
-            tweetsCollection.push(...tweets
-                            .filter((x) => {
-                              if (collectReplies) {
-                                const fromYesterday = checkDateValidity(x.created_at, time.yesterdayDate)
-                                const notCongressId = !!x.in_reply_to_user_id_str && !data.ids.all.includes(x.in_reply_to_user_id_str)
-                                const notRetweet = !x.retweeted_status
-                                return fromYesterday && notCongressId && notRetweet
-                              } else if (isMaintenance && !!x.in_reply_to_user_id_str) {
-                                return checkDateValidity(x.created_at, time.todayDate) && data.ids.all.includes(x.in_reply_to_user_id_str)
-                              }
-                              return checkDateValidity(x.created_at, time.todayDate)
-                            })
-                            .map(tweet => new Tweet(tweet)))
+            const mappedAndValid = await tweets
+              .filter(x => x.time.includes(time.todayDate))
+            tweetsCollection = tweetsCollection.concat(mappedAndValid)
           }
-          if (isMaintenance) {
-            if (!checkDateValidity(lastTweet.created_at, time.todayDate)) {
-              changeCount = true
-              count += 1
-            }
-            isValid = count < data.ids.toCheck.length
-          } else if (time.yesterdayDate) {
-            if (collectReplies) {
-              if (!checkDateValidity(lastTweet.created_at, time.yesterdayStart, 'sameOrAfter')) {
-                changeCount = true
-                count += 1
-              }
-
-              isValid = count < data.ids.toCheck.length
-            } else isValid = checkDateValidity(lastTweet.created_at, lastRun, 'sameOrAfter') && tweets.length === 200
-          } else isValid = checkDateValidity(lastTweet.created_at, time.todayDate) && tweets.length === 200
-          if (!isValid) break
-          else if (!changeCount) maxId = lastTweet.id_str
-          else maxId = null
         }
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.log('err with twitter run process', e)
-        break
-      }
-    }
 
-    return {
-      sinceId: newSinceId,
-      success: count > 0,
-      tweets: tweetsCollection,
+
+        count += 1
+      }
+
+      return {
+        sinceId: newSinceId,
+        success: count === queries.length,
+        tweets: tweetsCollection,
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.log('err with twitter run process', e)
+      return Promise.reject(e)
     }
   }
 
@@ -363,8 +327,8 @@ export class TwitterHelper {
     if (!config || !config.consumer_key || !config.consumer_secret) {
       throw new Error('Missing required props for Twit client')
     }
-
-    this.client = new Twit(config)
+    this.config = config
+    this.client = new Twit(this.config)
     this.listId = listId
   }
 }

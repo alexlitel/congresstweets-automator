@@ -14,8 +14,8 @@ export const getTime = (time, format = false) => {
   const parsedTime = moment.tz(time, TIME_ZONE)
   if (format) {
     return format === 'iso'
-            ? parsedTime.toISOString()
-            : parsedTime.format(format === true ? undefined : format)
+      ? parsedTime.toISOString()
+      : parsedTime.format(format === true ? undefined : format)
   }
   return moment.tz(time, TIME_ZONE)
 }
@@ -34,11 +34,11 @@ export const prettyPrint = data => JSON.stringify(data, null, '\t')
 export const nativeClone = obj => JSON.parse(JSON.stringify(obj))
 
 export const serializeObj = obj => Object.keys(obj)
-                                      .filter(x => !isNil(obj[x]))
-                                      .reduce((p, c) => {
-                                        p[c] = JSON.stringify(obj[c])
-                                        return p
-                                      }, {})
+  .filter(x => !isNil(obj[x]))
+  .reduce((p, c) => {
+    p[c] = JSON.stringify(obj[c])
+    return p
+  }, {})
 
 export const createTimeObj = (data) => {
   const time = {}
@@ -47,7 +47,7 @@ export const createTimeObj = (data) => {
 
   if (data.lastRun) {
     const diffDay = data.lastUpdate ?
-            !time.now.isSame(data.lastUpdate, 'day') : !time.now.isSame(data.lastRun, 'day')
+      !time.now.isSame(data.lastUpdate, 'day') : !time.now.isSame(data.lastRun, 'day')
     if (diffDay) {
       const yesterday = getTime(time.now).subtract(1, 'days').startOf('day')
       if (yesterday.diff(data.initDate, 'days') > 100) {
@@ -71,26 +71,60 @@ export const getFullPartyName = (str) => {
   return dict[str.toUpperCase()]
 }
 
+export const buildQueries = (data) => {
+  let queries
+  if (typeof data === 'object') {
+    queries = data.map((x, i, a) => encodeURIComponent(`from:${x.screen_name}${i < a.length - 1 ? ' OR ' : ''}`))
+      .reduce((p, c) => {
+        const len = p.length
+        const last = len ? p[len - 1] : null
+        const lastLen = last ? last.length : null
+        if (len) {
+          if (lastLen + c.length < 446) {
+            p[len - 1] = [last, c].join('')
+          } else if (lastLen + c.length < 454 && c.endsWith('%20OR%20')) {
+            p[len - 1] = [last, c.slice(0, -8)].join('')
+          } else {
+            if (last.endsWith('%20OR%20')) p[len - 1] = last.slice(0, -8)
+            p.push(c)
+          }
+        } else {
+          p.push(c)
+        }
+        return p
+      }, [])
+  } else {
+    queries = [encodeURIComponent(`list:${data}`)]
+  }
+  return queries.map(query => [
+    query,
+    encodeURIComponent(' include:nativeretweets AND include:retweets'),
+  ].join(''))
+}
+
 export const unserializeObj = obj => mapValues(obj, v => v !== undefined && v !== 'undefined' ? JSON.parse(v) : null)
 
 export const trimLeadingSpace = (str, flatten = false) =>
-          flatten ? str.replace(/\n\s+/gmi, ' ') : str.replace(/^(?![\n])\s+/gmi, '')
+  flatten ? str.replace(/\n\s+/gmi, ' ') : str.replace(/^(?![\n])\s+/gmi, '')
 
 export const extractAccounts = userData =>
-  flatMapDeep(userData, ({ accounts, name, type: userType, id: userId, chamber }, userIndex) =>
-                accounts.map((account, accountIndex) =>
-                          Object.assign({}, account, { name,
-                            type: userType,
-                            chamber,
-                            user_index: userIndex,
-                            account_index: accountIndex },
-                            userType === 'member' ? { bioguide: userId.bioguide } : {}),
-                    ),
-                )
+  flatMapDeep(userData, ({
+    accounts, name, type: userType, id: userId, chamber,
+  }, userIndex) =>
+    accounts.map((account, accountIndex) =>
+      Object.assign(
+        {}, account, {
+          name,
+          type: userType,
+          chamber,
+          user_index: userIndex,
+          account_index: accountIndex,
+        },
+        userType === 'member' ? { bioguide: userId.bioguide } : {},
+      )))
 
 export const parsedFlags = pick(yargsParser(process.argv.slice(2), {
   alias: {
-    'collect-replies': ['c', 'cr', 'collect', 'collectreplies'],
     'format-only': ['format', 'ff', 'formatfiles', 'formatonly', 'fo', 'fmt'],
     'has-bot': ['hb', 'hasbot', 'bot'],
     'init-list': ['initlist', 'il', 'list', 'init'],
@@ -99,4 +133,4 @@ export const parsedFlags = pick(yargsParser(process.argv.slice(2), {
     'post-build': ['p', 'post', 'pb', 'postbuild'],
     'self-update': ['s', 'self', 'su', 'selfupdate'],
   },
-}), ['collectReplies', 'formatOnly', 'hasBot', 'initList', 'localStore', 'noCommit', 'postBuild', 'selfUpdate'])
+}), ['formatOnly', 'hasBot', 'initList', 'localStore', 'noCommit', 'postBuild', 'selfUpdate'])

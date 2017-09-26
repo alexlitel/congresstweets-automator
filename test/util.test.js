@@ -3,6 +3,7 @@ import {
     getTime,
     nativeClone,
     checkDateValidity,
+    buildQueries,
     serializeObj,
     createTimeObj,
     getFullPartyName,
@@ -14,6 +15,7 @@ import {
     generateTimeProps,
     modifyDate,
 } from './util/test-util'
+import fs from 'fs'
 
 describe('Utility function tests', () => {
   describe('Time utility functions', () => {
@@ -133,6 +135,32 @@ describe('Utility function tests', () => {
 
 
   describe('Misc utility functions', () => {
+    describe('buildQueries', () => {
+      describe('User array passed as argument', () => {
+        test('Builds iterable url-encoded search queries of 500 chars or less', () => {
+        const names = Array.from(Array(20))
+                .map((x, i) => ({ screen_name: `TwitterMember${i}` }))
+        const queries = buildQueries(names)
+        expect(typeof queries[0]).toEqual('string')
+        expect(queries.every(query => query.length <= 500)).toBeTruthy()
+      })
+
+      test('Does not join query with only one user', () => {
+        const names = Array.from(Array(20))
+                .map((x, i) => ({ screen_name: `TwitterMember${i}` })).slice(0, 1)
+        const queries = buildQueries(names)
+        expect(queries).toHaveLength(1)
+        expect(queries[0]).toEqual('from%3ATwitterMember0%20include%3Anativeretweets%20AND%20include%3Aretweets')
+      })
+      })
+
+      describe('List id passed as argument', () => {
+        test('Returns array with single string with list query', () => {
+          expect(buildQueries('123')).toEqual(['list%3A123%20include%3Anativeretweets%20AND%20include%3Aretweets'])
+        })
+      })
+    })
+
     describe('unserializeObj', () => {
       test('Successfully unserializes object', () => {
         const foo = {

@@ -7,31 +7,22 @@ This repo houses the backend portion of a project collecting the daily tweets of
 Licensed under [MIT](http://www.opensource.org/licenses/mit-license.php)
 
 ## How it works
-This project is designed to run on a service like Heroku, interfacing with the Twitter API at a set interval to make sure tweets are captured. The app culls data from a Twitter list following all the relevant congressional accounts, the most anonymous way of following a Twitter account. If you follow this strategy (designed to minimizing chances of blocking), I recommend using an undetectable private Twitter list in combination with either a private Twitter account or a burner account you never use. This app does not presently initialize the list or automate following process, though I might create some version of the latter in the future.
+This project is designed to run on a service like Heroku, interfacing with the Twitter API at a set interval to make sure tweets are captured. The app culls data from a Twitter list following all the relevant congressional accounts, the most anonymous way of following a Twitter account. If you follow this strategy (designed to minimizing chances of blocking), I recommend using an undetectable private Twitter list in combination with either a private Twitter account or a burner account you never use. To collect tweets, the app iterates through Twitter search queries.
 
 To track tweets and a few other data points, the app uses a small Redis store that contains some stringified data that gets parsed when the app runs. To reduce unwieldiness, the app transforms the received Twitter tweet data into much smaller objects with a few properties like text, screen name, date, and id. It includes both retweets and full text of quoted tweets. At the end of the day (EST), the app empties out the previous day's tweet day into JSON dumps of tweets (generated using data from `data/users.json`, stored on the Redis store).
 
 The app uses the Github API to commit JSON data (and a small MD file/Jekyll post for some frontend/RSS stuff) to the frontend repo. I have set up and recommend a secondary account so you do not have 30 extra commits at the end of the month on your page.
-
-*Note: By default, the app does not collect replies to tweets from users outside the list, though there is a configurable option to do so.*
 
 ### Maintenance
 In addition to the app collating tweets from a list, there is a highly customizable maintenance process that allows for the easy updating and organization of user datasets and the Twitter list and Redis store powering the project. The maintenance process checks the local user datasets against the Twitter list, and current legislator and social media datasets from [@unitedstates/congress-legislators](https://github.com/unitedstates/congress-legislators) to look for outdated information, and if there is any outdated info, will update the datasets accordingly. Server-side or with a local Redis store, this process checks for reactivated and deactivated accounts, and deletes any accounts from the current user dataset that have been were deactivated long enough ago (more than 30 days) for Twitter to delete the account from its servers.
 
 In addition to maintaining the datasets, the the process handles store and list initialization, and post-build updates of the store. Depending on the environment and configuration, the maintenance process can update files and/or store, and commit the updated datasets to Github with a message and body.
 
-The maintenance process' behavior can be modified based on the options described in the section below.
+The maintenance process' behavior can be modified based on the options described below.
 
+##### Options
+There are a number of options that you can pass to the maintenance processes to customize its behavior. The options are passed as flags when running the `update` file (i.e. `node lib/update --exampleFlag=foo` or `babel-node src/update.js --exampleFlag=foo`, depending on environment).
 
-### App/Maintenance options
-There are a number of options that you can pass to the app and maintenance processes to customize their behavior. The options are passed as flags when running the `update` or `main` files (i.e. `node lib/update --exampleFlag=foo` or `babel-node src/update.js --exampleFlag=foo`, etc).
-
-##### App
-* **`collect-replies`**: allows app to collect replies to tweets from accounts from users outside the list. 
-    
-  *aliases: `c`, `cr`, `collect`, `collectreplies`*
-
-##### Maintenance
 * **`format-only`**: in local environment, simply sorts the dataset files tidily.
 
    *aliases: `format`, `ff`, `formatfiles`, `formatonly`, `fo`, `fmt`*
@@ -109,7 +100,7 @@ You'll need the following environmental variables set in a `.env` file in the di
 **Optional variables**: There's a `TZ` variable for helping the `moment-timezone` module operate, but that defaults to `America/New_York` in its absence and isn't needed. For the self-updating maintenance process, there's a `SELF_REPO` variable for the quasi-recursive updates. Make sure you have Github repos set up for deployment, otherwise those parts of the app may fail. Deploying the app will automatically run unit tests and linters.
 
 ## Testing
-To test the app, simply run `yarn test` to lint and run Jest tests and other fun stuff. For v1, I created a mock API to handle the requests to Github content, Github's API and Twitter's API, and added a variety of utilities
+To test the app, simply run `yarn test` to lint and run Jest tests and other fun stuff. As of V1, there's a mock API to handle the requests to Github content, Github's API and Twitter's API, and added a variety of utilities
 
 ## Issues, etc.
 If you come across any issues, don't hesitate to file any issue in this repo, make a pull request or [send an email](mailto:alexlitelATgmailDOTcom).

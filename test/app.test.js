@@ -11,12 +11,12 @@ import {
   prettyPrint,
 } from '../src/util'
 import {
-    appBuilder,
-    App,
+  appBuilder,
+  App,
 } from '../src/app'
 import {
-    configureMaintenance,
-    Maintenance,
+  configureMaintenance,
+  Maintenance,
 } from '../src/maintenance'
 import { TwitterHelper } from '../src/twitter'
 import GithubHelper from '../src/github'
@@ -76,9 +76,7 @@ describe('App class', () => {
     mockFns.initStore = jest.spyOn(Maintenance.prototype, 'initStore')
     mockFns.twitterRun = jest.spyOn(TwitterHelper.prototype, 'run')
     mockFns.twitterRequest = jest.spyOn(TwitterHelper.prototype, 'makeRequest')
-    mockFns.getActiveUsers = jest.spyOn(TwitterHelper.prototype, 'getActiveUsers')
-    mockFns.getStatuses = jest.spyOn(TwitterHelper.prototype, 'getStatuses')
-    mockFns.getUserStatuses = jest.spyOn(TwitterHelper.prototype, 'getUserStatuses')
+    mockFns.searchStatuses = jest.spyOn(TwitterHelper.prototype, 'searchStatuses')
     mockFns.githubRun = jest.spyOn(GithubHelper.prototype, 'run')
     mockFns.createBlobs = jest.spyOn(GithubHelper.prototype, 'createBlobs')
     mockFns.createCommit = jest.spyOn(GithubHelper.prototype, 'createCommit')
@@ -152,6 +150,7 @@ describe('App class', () => {
           now: '2017-02-02T14:00:00-04:00',
           todayDate: '2017-02-02',
         })
+        mockApi.options.multiGet = true
       })
 
       test('Initialize redis store if no redis store exists', async () => {
@@ -170,9 +169,10 @@ describe('App class', () => {
         expect(mockFns.hmsetAsync.mock.calls[1][1]).toHaveProperty('lastRun')
         expect(mockFns.twitterRun).toBeCalled()
         expect(mockFns.twitterRequest).toHaveBeenCalledTimes(3)
-        expect(redisData.tweets).toHaveLength(450)
+        expect(mockFns.searchStatuses).toHaveBeenCalledTimes(3)
+        expect(redisData.tweets).toHaveLength(275)
         expect(redisData.lastRun).toEqual('2017-02-02T14:00:00-04:00')
-        expect(redisData.sinceId).toEqual('0')
+        expect(redisData.sinceId).toEqual('000')
       })
     })
 
@@ -191,20 +191,21 @@ describe('App class', () => {
         await app.run()
         expect(mockFns.twitterRun).toBeCalled()
         expect(mockFns.twitterRun.mock.calls[0][0]).toHaveProperty('sinceId', '300')
-        expect(mockFns.twitterRequest).toHaveBeenCalledTimes(2)
+        expect(mockFns.twitterRequest).toHaveBeenCalledTimes(1)
       })
 
       test('Appends new tweets to existing tweets and writes new data and time to store', async () => {
+        mockApi.options.multiGet = true
         await app.run()
         const redisData = unserializeObj(await redisClient.hgetallAsync('app'))
         expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('tweets')
         expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('sinceId')
         expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('lastRun')
         expect(mockFns.twitterRun).toBeCalled()
-        expect(mockFns.twitterRequest).toHaveBeenCalledTimes(2)
-        expect(redisData.tweets).toHaveLength(305)
+        expect(mockFns.twitterRequest).toHaveBeenCalledTimes(3)
+        expect(redisData.tweets).toHaveLength(280)
         expect(redisData.lastRun).toEqual('2017-02-02T14:00:00-04:00')
-        expect(redisData.sinceId).toEqual('0')
+        expect(redisData.sinceId).toEqual('000')
       })
 
       test('Only writes time to store when no new tweets', async () => {
@@ -232,8 +233,10 @@ describe('App class', () => {
         })
         const tweets = Array.from(Array(5)).map((x, i) => ({ id: i }))
         await app.init()
-        await redisClient.hmsetAsync('app',
-          serializeObj({ tweets, sinceId: '300', lastRun: '2017-02-01T23:00:00-04:00' }))
+        await redisClient.hmsetAsync(
+          'app',
+          serializeObj({ tweets, sinceId: '300', lastRun: '2017-02-01T23:00:00-04:00' }),
+        )
       })
 
       test('Checks tweets', async () => {
@@ -241,7 +244,7 @@ describe('App class', () => {
         await app.run()
         expect(mockFns.twitterRun).toBeCalled()
         expect(mockFns.twitterRun.mock.calls[0][0]).toHaveProperty('sinceId', '300')
-        expect(mockFns.twitterRequest).toHaveBeenCalledTimes(2)
+        expect(mockFns.twitterRequest).toHaveBeenCalledTimes(1)
       })
 
       test('Commits yesterday\'s tweet data and writes today\'s tweets to store', async () => {
@@ -257,59 +260,6 @@ describe('App class', () => {
         expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('sinceId')
         expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('collectSince')
         expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('lastRun')
-        expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('lastUpdate')
-        expect(redisData.tweets).toHaveLength(5)
-        expect(redisData.lastRun).toEqual('2017-02-02T00:00:00-04:00')
-        expect(redisData.lastUpdate).toEqual('2017-02-02')
-      })
-    })
-
-    describe('Run process after midnight with collectReplies flag', () => {
-      beforeEach(async () => {
-        mockApi.options.lastDay = true
-        mockApi.options.app = true
-        mockApi.options.collectReplies = true
-        util.createTimeObj.mockReturnValueOnce({
-          now: '2017-02-02T00:00:00-04:00',
-          todayDate: '2017-02-02',
-          yesterdayDate: '2017-02-01',
-          yesterdayStart: '2017-02-01T00:00:00-04:00',
-        })
-        const tweets = Array.from(Array(5)).map((x, i) => ({ id: i }))
-        app.options.collectReplies = true
-        await app.init()
-        await redisClient.hmsetAsync('app',
-          serializeObj({ tweets, sinceId: '300', lastRun: '2017-02-01T23:00:00-04:00' }))
-      })
-
-      test('Checks tweets, active users and replies', async () => {
-        mockApi.options.lastDay = true
-        await app.run()
-        expect(mockFns.twitterRun).toHaveBeenCalledTimes(2)
-        expect(mockFns.getActiveUsers).toBeCalled()
-        expect(mockFns.twitterRun.mock.calls[0][0]).toHaveProperty('sinceId', '300')
-        expect(mockFns.twitterRun.mock.calls[1][0]).toHaveProperty('sinceId', '300')
-        expect(mockFns.twitterRun.mock.calls[0][0]).toHaveProperty('ids.toCheck')
-        expect(mockFns.twitterRun.mock.calls[0][0]).toHaveProperty('ids.all')
-        expect(mockFns.twitterRun.mock.calls[0][0].ids.toCheck).toHaveLength(5)
-        expect(mockFns.twitterRun.mock.calls[0][0].ids.all).toHaveLength(8)
-        expect(mockFns.twitterRun.mock.calls[1][1]).toHaveProperty('collectReplies', true)
-        expect(mockFns.twitterRequest).toHaveBeenCalledTimes(7)
-        expect(mockFns.getUserStatuses).toHaveBeenCalledTimes(5)
-        expect(mockFns.getStatuses).toHaveBeenCalledTimes(1)
-      })
-
-      test('Commits yesterday\'s tweet data and writes today\'s tweets to store', async () => {
-        await app.run()
-        const redisData = unserializeObj(await redisClient.hgetallAsync('app'))
-        expect(mockFns.githubRun).toBeCalled()
-        expect(mockFns.createBlobs).toBeCalled()
-        expect(mockFns.createCommit).toBeCalled()
-        expect(mockFns.createBlobs.mock.calls[0][0].tweets).toHaveLength(35)
-        expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('tweets')
-        expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('sinceId')
-        expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('lastRun')
-        expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('collectSince')
         expect(mockFns.hmsetAsync.mock.calls[2][1]).toHaveProperty('lastUpdate')
         expect(redisData.tweets).toHaveLength(5)
         expect(redisData.lastRun).toEqual('2017-02-02T00:00:00-04:00')

@@ -1,9 +1,9 @@
 import './load-env'
 import {
-    configureMaintenance,
+  configureMaintenance,
 } from './maintenance'
 import {
-    APP_CONFIG,
+  APP_CONFIG,
 } from './config'
 import {
   parsedFlags,

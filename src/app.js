@@ -1,16 +1,16 @@
 import _ from 'lodash'
 import {
-    TwitterHelper,
+  TwitterHelper,
 } from './twitter'
 import GithubHelper from './github'
 import {
-    configureMaintenance,
+  configureMaintenance,
 } from './maintenance'
 import {
-    createTimeObj,
-    getTime,
-    serializeObj,
-    unserializeObj,
+  createTimeObj,
+  getTime,
+  serializeObj,
+  unserializeObj,
 } from './util'
 
 
@@ -23,44 +23,36 @@ export class App {
     try {
       const isActive = !!await this.redisClient.existsAsync('app')
       const data = isActive ?
-                unserializeObj(await this.redisClient.hgetallAsync('app'))
-              : await this.init()
+        unserializeObj(await this.redisClient.hgetallAsync('app'))
+        : await this.init()
 
       data.time = _.chain(data)
-                .pick(['initDate', 'lastRun', 'lastUpdate'])
-                .mapValues(v => _.isNil(v) ? null : getTime(v))
-                .thru(timeProps => createTimeObj(timeProps))
-                .value()
+        .pick(['initDate', 'lastRun', 'lastUpdate'])
+        .mapValues(v => _.isNil(v) ? null : getTime(v))
+        .thru(timeProps => createTimeObj(timeProps))
+        .value()
+
+      if (!data.lastRun) {
+        data.lastRun = getTime().startOf('day').format()
+      }
 
       const twitterClient = new TwitterHelper(this.config.TWITTER_CONFIG, this.config.LIST_ID)
       const twitterData = await twitterClient.run(data)
 
       const newData = {}
 
-      if (twitterData.sinceId !== undefined && twitterData.sinceId !== 'undefined') {
+      if (twitterData.sinceId && twitterData.sinceId !== undefined && twitterData.sinceId !== 'undefined') {
         newData.sinceId = twitterData.sinceId
       }
 
       if (data.time.yesterdayDate || twitterData.tweets.length > 0) {
         newData.tweets = await _.uniqBy(data.time.yesterdayDate ?
-                    twitterData.tweets.today :
-                    data.tweets.concat(twitterData.tweets), 'id')
+          twitterData.tweets.today :
+          data.tweets.concat(twitterData.tweets), 'id')
       }
 
       if (data.time.yesterdayDate) {
         newData.collectSince = newData.sinceId
-
-        if (this.options.collectReplies) {
-          data.ids = {}
-          data.ids.all = data.accounts.map(account => account.id)
-          data.ids.toCheck = (await twitterClient
-                                    .getActiveUsers(data.time))
-                                    .map(account => account.id_str)
-
-          twitterData.tweets.yesterday = (await twitterClient
-                                          .run(data, { collectReplies: true })).tweets
-                                          .concat(twitterData.tweets.yesterday)
-        }
 
         data.tweets = await _.uniqBy(data.tweets.concat(twitterData.tweets.yesterday), 'id')
 

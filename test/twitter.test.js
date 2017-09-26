@@ -3,15 +3,18 @@ import path from 'path'
 import _ from 'lodash'
 import MockApi from './helpers/api-mock'
 import {
-    Tweet,
-    TwitterHelper,
+  Tweet,
+  TwitterHelper,
 } from '../src/twitter'
 import {
-    nativeClone,
+  nativeClone,
+  extractAccounts,
+  prettyPrint,
+  buildQueries,
 } from '../src/util'
 import {
-    modifyDate,
-    testConfig,
+  modifyDate,
+  testConfig,
 } from './util/test-util'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 6000
@@ -23,6 +26,8 @@ const loadData = () => {
   data.time = {
     todayDate: '2017-02-02',
   }
+  data.lastRun = modifyDate(data.time.todayDate, -1, 'hour')
+  data.accounts = extractAccounts(JSON.parse(fs.readFileSync(path.join(__dirname, '/data/users.json'))))
 }
 
 beforeAll(() => {
@@ -41,11 +46,9 @@ describe('Tweet data', () => {
     const usersLength = users.length
     const filteredWithNames = users.filter(user => !!user.name).length
     const usersWithValidInfo = users.filter(user => user.accounts
-                .every(account =>
-                    ['id', 'screen_name', 'account_type'].every(key => key in account),
-                ),
-            )
-            .length
+      .every(account =>
+        ['id', 'screen_name', 'account_type'].every(key => key in account)))
+      .length
     expect(filteredWithNames).toEqual(usersLength)
     expect(usersWithValidInfo).toBe(usersLength)
   })
@@ -147,7 +150,10 @@ describe('TwitterHelper class methods', () => {
   let twitterClient
   let accounts
   const mockFns = {}
-  beforeAll(() => {
+
+
+  beforeEach(() => {
+    jest.resetAllMocks()
     twitterClient = new TwitterHelper(testConfig.TWITTER_CONFIG, testConfig.LIST_ID)
     accounts = [{
       id: 123123,
@@ -163,11 +169,6 @@ describe('TwitterHelper class methods', () => {
       screen_name: 'FakeAccount3',
     }]
     data.ids = accounts.map(account => account.id_str)
-  })
-
-  beforeEach(() => {
-    jest.resetAllMocks()
-
     // eslint-disable-next-line
     for (const key of Object.keys(mockFns)) {
       mockFns[key].mockRestore()
@@ -186,6 +187,30 @@ describe('TwitterHelper class methods', () => {
     })
   })
 
+  describe('Twit client authentication type switcher - switchAuthType', () => {
+    test('Switches authentication from user to application', () => {
+      twitterClient.switchAuthType()
+      expect(twitterClient.client.config).toEqual({
+        consumer_key: 'test',
+        consumer_secret: 'test',
+        app_only_auth: true,
+      })
+    })
+    test('Switches authentication from application to user', () => {
+      twitterClient.client.config = {
+        consumer_key: 'test',
+        consumer_secret: 'test',
+        app_only_auth: true,
+      }
+      twitterClient.switchAuthType()
+      expect(twitterClient.client.config).toEqual({
+        consumer_key: 'test',
+        consumer_secret: 'test',
+        access_token: 'test',
+        access_token_secret: 'test',
+      })
+    })
+  })
 
   describe('List methods', () => {
     let errClient
@@ -208,36 +233,6 @@ describe('TwitterHelper class methods', () => {
       })
     })
 
-    describe('getStatuses', () => {
-      test('Retrieve list statuses', async () => {
-        const statuses = await twitterClient.getStatuses()
-        expect(mockFns.get).toBeCalledWith('lists/statuses', { list_id: '123456789', count: 200, tweet_mode: 'extended' })
-        expect(statuses).toHaveLength(200)
-        expect(statuses[0].id_str).toEqual('0')
-      })
-
-      test('Retrieve list statuses with max id', async () => {
-        const statuses = await twitterClient.getStatuses(null, 200)
-        expect(mockFns.get).toBeCalledWith('lists/statuses', { list_id: '123456789', count: 200, tweet_mode: 'extended', max_id: 200 })
-        expect(statuses).toHaveLength(200)
-      })
-
-      test('Retrieve list statuses with since id', async () => {
-        await expect(twitterClient.getStatuses(500)).resolves.toHaveLength(200)
-        expect(mockFns.get).toBeCalledWith('lists/statuses', { list_id: '123456789', count: 200, tweet_mode: 'extended', since_id: 500 })
-      })
-
-      test('Retrieve list statuses with max and since ids', async () => {
-        const statuses = await twitterClient.getStatuses(0, 202)
-        expect(statuses).toHaveLength(200)
-        expect(mockFns.get).toBeCalledWith('lists/statuses', { list_id: '123456789', count: 200, tweet_mode: 'extended', since_id: 0, max_id: 202 })
-      })
-
-      test('Throws err without list id', async () => {
-        await expect(errClient.getStatuses()).rejects.toEqual(idErr)
-      })
-    })
-
     describe('getListMembers', () => {
       test('Retrieving users from list', async () => {
         await expect(twitterClient.getListMembers()).resolves.toHaveLength(100)
@@ -255,29 +250,6 @@ describe('TwitterHelper class methods', () => {
         await expect(errClient.getList()).rejects.toEqual(idErr)
       })
     })
-
-    describe('getActiveUsers', () => {
-      test('Retrieving active users from list', async () => {
-        const time = Object.assign({}, data.time)
-        time.yesterdayDate = '2017-02-01'
-        time.yesterdayStart = modifyDate(data.time.todayDate, -1, 'd').startOf('day').format()
-        mockApi.options.lastDay = true
-        await expect(twitterClient.getActiveUsers(time)).resolves.toHaveLength(50)
-        expect(mockFns.get).toBeCalledWith('lists/members', { list_id: '123456789', count: 5000 })
-      })
-
-      test('Throws err without list id', async () => {
-        await expect(errClient.getActiveUsers({
-          yesterdayDate: true,
-          yesterdayStart: true,
-        })).rejects.toEqual(idErr)
-      })
-
-      test('Throws err without valid time', async () => {
-        await expect(twitterClient.getActiveUsers()).rejects.toEqual(new Error('Invalid time object'))
-      })
-    })
-
 
     describe('createList', () => {
       test('Creating new list without arguments', async () => {
@@ -381,144 +353,201 @@ describe('TwitterHelper class methods', () => {
         await expect(twitterClient.isAccountValid()).rejects.toEqual(idErr)
       })
     })
+  })
 
-    describe('getUserStatuses', () => {
-      test('Retrieving user statuses', async () => {
-        await expect(twitterClient.getUserStatuses('foo')).resolves.toHaveLength(50)
-        expect(mockFns.get).toBeCalledWith('statuses/user_timeline', { user_id: 'foo', count: 200, tweet_mode: 'extended' })
+  describe('Search methods', () => {
+    describe('searchStatuses', () => {
+      let query
+
+      beforeAll(() => {
+        query = buildQueries(accounts).pop()
       })
 
-      test('Throws err without list id', async () => {
-        await expect(twitterClient.getUserStatuses()).rejects.toEqual(idErr)
+      test('Searches user statuses', async () => {
+        const results = await twitterClient.searchStatuses(query)
+        expect(results).toHaveProperty('statuses')
+        expect(results).toHaveProperty('search_metadata')
+        expect(results.statuses).toHaveLength(50)
+        expect(mockFns.get).toBeCalledWith('search/tweets', {
+          q: query, result_type: 'recent', count: 100, tweet_mode: 'extended',
+        })
+      })
+
+      test('Searches user statuses with max id', async () => {
+        const results = await twitterClient.searchStatuses(query, null, '25')
+        expect(results).toHaveProperty('statuses')
+        expect(results).toHaveProperty('search_metadata')
+        expect(results.statuses).toHaveLength(50)
+        expect(mockFns.get).toBeCalledWith('search/tweets', {
+          q: query, result_type: 'recent', max_id: '25', count: 100, tweet_mode: 'extended',
+        })
+      })
+
+      test('Searches user statuses with since id', async () => {
+        const results = await twitterClient.searchStatuses(query, '500')
+        expect(results).toHaveProperty('statuses')
+        expect(results).toHaveProperty('search_metadata')
+        expect(results.statuses).toHaveLength(50)
+        expect(mockFns.get).toBeCalledWith('search/tweets', {
+          q: query, result_type: 'recent', since_id: '500', count: 100, tweet_mode: 'extended',
+        })
+      })
+
+      test('Searches user statuses since and max id', async () => {
+        const results = await twitterClient.searchStatuses(query, '75', '25')
+        expect(results).toHaveProperty('statuses')
+        expect(results).toHaveProperty('search_metadata')
+        expect(results.statuses).toHaveLength(50)
+        expect(mockFns.get).toBeCalledWith('search/tweets', {
+          q: query, result_type: 'recent', max_id: '25', since_id: '75', count: 100, tweet_mode: 'extended',
+        })
+      })
+
+      test('Throws err without query', async () => {
+        await expect(twitterClient.searchStatuses()).rejects.toEqual(new Error('Query required for search'))
+      })
+    })
+
+    describe('searchIterate', () => {
+      let query
+
+      beforeEach(() => {
+        query = buildQueries(accounts).pop()
+        mockApi.resetOptions()
+        mockFns.searchStatuses = jest.spyOn(twitterClient, 'searchStatuses')
+      })
+
+      test('Iterates through query', async () => {
+        mockApi.options = {
+          run: true,
+          multiGet: true,
+        }
+        const result = await twitterClient.searchIterate(query, '225', null, data.time)
+        expect(result).toHaveLength(225)
+        expect(mockFns.searchStatuses).toHaveBeenCalledTimes(3)
+        expect(mockFns.get).toHaveBeenCalledTimes(3)
+      })
+
+      test('Iterates through query without sinceId', async () => {
+        mockApi.options = {
+          run: true,
+          multiGet: true,
+        }
+        const result = await twitterClient.searchIterate(query, null, null, data.time)
+        expect(result).toHaveLength(300)
+        expect(mockFns.searchStatuses).toHaveBeenCalledTimes(3)
+        expect(mockFns.get).toHaveBeenCalledTimes(3)
+      })
+
+      test('Iterates through query returning fewer than 100 tweets', async () => {
+        mockApi.options = {
+          run: true,
+        }
+        const result = await twitterClient.searchIterate(query, '225', '201', data.time)
+        expect(result).toHaveLength(24)
+        expect(mockFns.searchStatuses).toHaveBeenCalledTimes(1)
+        expect(mockFns.get).toHaveBeenCalledTimes(1)
+      })
+
+      test('Iterates through query returning no tweets', async () => {
+        mockApi.options = {
+          run: true,
+          noTweets: true,
+        }
+        const result = await twitterClient.searchIterate(query, '225', '201', data.time)
+        expect(result).toHaveLength(0)
+        expect(mockFns.searchStatuses).toHaveBeenCalledTimes(1)
+        expect(mockFns.get).toHaveBeenCalledTimes(1)
       })
     })
   })
 
-
   describe('Run method', () => {
     beforeEach(() => {
       mockApi.resetOptions()
+      mockFns.searchStatuses = jest.spyOn(twitterClient, 'searchStatuses')
+      mockFns.searchIterate = jest.spyOn(twitterClient, 'searchIterate')
     })
 
     test('Regular run process', async () => {
-      mockApi.options.run = true
-      const runProcess = await twitterClient.run(data)
-      runProcess.tweets = _.uniqBy(runProcess.tweets, 'id')
-
-      expect(runProcess.tweets).toHaveLength(450)
-      expect(runProcess.sinceId).toEqual('0')
-      expect(runProcess.success).toEqual(true)
-      expect(mockFns.get).toHaveBeenCalledTimes(3)
-      expect(mockFns.get.mock.calls[0]).toEqual(['lists/statuses', { list_id: '123456789', count: 200, tweet_mode: 'extended' }])
-      expect(mockFns.get.mock.calls[1][1]).toHaveProperty('max_id')
-      expect(mockFns.get.mock.calls[2][1]).toHaveProperty('max_id')
-    })
-
-    test('Regular run process with no tweets retruned', async () => {
       mockApi.options = {
         run: true,
-        lastDay: true,
-        noTweets: true
+        multiGet: true,
+      }
+      const locData = nativeClone(data)
+      locData.sinceId = '225'
+      const runProcess = await twitterClient.run(locData)
+
+      runProcess.tweets = _.uniqBy(runProcess.tweets, 'id')
+      expect(mockFns.get).toHaveBeenCalledTimes(3)
+      expect(mockFns.searchStatuses).toHaveBeenCalledTimes(3)
+      expect(mockFns.searchIterate).toHaveBeenCalledTimes(1)
+      expect(mockFns.searchStatuses.mock.calls.every(x =>
+        x[0].includes('list'))).toBeTruthy()
+      expect(runProcess.tweets).toHaveLength(225)
+      expect(runProcess.sinceId).toEqual(expect.stringMatching('000'))
+      expect(runProcess.success).toEqual(true)
+    })
+
+    test('Run process without sinceId', async () => {
+      mockApi.options = {
+        run: true,
+        multiGet: true,
+      }
+      const locData = nativeClone(data)
+      const runProcess = await twitterClient.run(locData)
+
+      runProcess.tweets = _.uniqBy(runProcess.tweets, 'id')
+      expect(mockFns.get).toHaveBeenCalledTimes(3)
+      expect(mockFns.searchStatuses).toHaveBeenCalledTimes(3)
+      expect(mockFns.searchIterate).toHaveBeenCalledTimes(1)
+      expect(mockFns.searchStatuses.mock.calls.every(x =>
+        x[0].includes('list'))).toBeTruthy()
+      expect(runProcess.tweets).toHaveLength(275)
+      expect(runProcess.sinceId).toEqual(expect.stringMatching('000'))
+      expect(runProcess.success).toEqual(true)
+    })
+
+    test('Run process with no new tweets', async () => {
+      mockApi.options = {
+        run: true,
+        noTweets: true,
       }
 
       const locData = nativeClone(data)
 
       const runProcess = await twitterClient.run(locData)
       expect(runProcess.tweets).toHaveLength(0)
-      expect(runProcess.sinceId).toEqual(undefined)
       expect(runProcess.success).toEqual(true)
+      expect(runProcess.sinceId).toBeFalsy()
       expect(mockFns.get).toHaveBeenCalledTimes(1)
+      expect(mockFns.searchStatuses).toHaveBeenCalledTimes(1)
+      expect(mockFns.searchIterate).toHaveBeenCalledTimes(1)
     })
 
     test('Regular run process after midnight', async () => {
       mockApi.options = {
         run: true,
         lastDay: true,
-      }
-
-      const locData = nativeClone(data)
-      locData.time.yesterdayStart = modifyDate(locData.time.todayDate, -1, 'd').startOf('day').format()
-      locData.time.yesterdayDate = '2017-02-01'
-      locData.lastRun = modifyDate(locData.time.todayDate, -1, 'h')
-      locData.sinceId = 650
-
-      const runProcess = await twitterClient.run(locData)
-      runProcess.tweets = await _.mapValues(runProcess.tweets, v => _.uniqBy(v, 'id'))
-
-      expect(runProcess.tweets.today).toHaveLength(450)
-      expect(runProcess.tweets.yesterday).toHaveLength(200)
-      expect(runProcess.sinceId).toEqual('0')
-      expect(runProcess.success).toEqual(true)
-      expect(mockFns.get).toHaveBeenCalledTimes(4)
-      expect(mockFns.get.mock.calls[1][1]).toHaveProperty('max_id')
-      expect(mockFns.get.mock.calls[2][1]).toHaveProperty('max_id')
-    })
-
-    test('Regular run process after midnight with collectReplies enabled', async () => {
-      mockApi.options = {
-        run: true,
-        collectReplies: true,
-      }
-
-      const locData = nativeClone(data)
-
-      locData.time.yesterdayStart = modifyDate(locData.time.todayDate, -1, 'd').startOf('day').format()
-
-      locData.time.yesterdayDate = '2017-02-01'
-      locData.lastRun = modifyDate(locData.time.todayDate, -1, 'h')
-      locData.collectSince = '650'
-
-      locData.ids = {}
-      locData.ids.all = accounts.map(x => x.id_str)
-      locData.ids.toCheck = [...data.ids]
-      const runProcess = await twitterClient.run(locData, {
-        collectReplies: true,
-      })
-      runProcess.tweets = _.uniqBy(runProcess.tweets, 'id')
-
-      expect(runProcess.tweets).toHaveLength(12)
-      expect(runProcess.sinceId).toBeTruthy()
-      expect(mockFns.get).toHaveBeenCalledTimes(3)
-
-      expect(mockFns.get.mock.calls[0][1]).toHaveProperty('since_id')
-      expect(mockFns.get.mock.calls[1][1]).toHaveProperty('since_id')
-      expect(mockFns.get.mock.calls[2][1]).toHaveProperty('since_id')
-    })
-
-    test('Regular run process after midnight with collectReplies enabled and more than 1 timeline request per user', async () => {
-      mockApi.options = {
-        run: true,
-        collectReplies: true,
         multiGet: true,
       }
 
       const locData = nativeClone(data)
-
       locData.time.yesterdayStart = modifyDate(locData.time.todayDate, -1, 'd').startOf('day').format()
-
       locData.time.yesterdayDate = '2017-02-01'
       locData.lastRun = modifyDate(locData.time.todayDate, -1, 'h')
-      locData.collectSince = '650'
+      locData.sinceId = '650'
 
-      locData.ids = {}
-      locData.ids.all = accounts.map(x => x.id_str)
-      locData.ids.toCheck = [...data.ids]
-      const runProcess = await twitterClient.run(locData, {
-        collectReplies: true,
-      })
-      runProcess.tweets = _.uniqBy(runProcess.tweets, 'id')
+      const runProcess = await twitterClient.run(locData)
+      runProcess.tweets = await _.mapValues(runProcess.tweets, v => _.uniqBy(v, 'id'))
 
-      expect(runProcess.tweets).toHaveLength(219)
-      expect(runProcess.sinceId).toBeTruthy()
-      expect(mockFns.get).toHaveBeenCalledTimes(6)
-      expect(mockFns.get.mock.calls[0][1]).toHaveProperty('since_id')
-      expect(mockFns.get.mock.calls[0][1]).toHaveProperty('include_rts', false)
-      expect(mockFns.get.mock.calls[0][1]).not.toHaveProperty('max_id')
-      expect(mockFns.get.mock.calls[1][1]).toHaveProperty('max_id')
-      expect(mockFns.get.mock.calls[1][1]).toHaveProperty('include_rts', false)
-      expect(mockFns.get.mock.calls[1][1]).toHaveProperty('since_id')
-      expect(mockFns.get.mock.calls[2][1]).toHaveProperty('since_id')
-      expect(mockFns.get.mock.calls[2][1]).toHaveProperty('include_rts', false)
+      expect(runProcess.tweets.today).toHaveLength(275)
+      expect(runProcess.tweets.yesterday).toHaveLength(375)
+      expect(runProcess.sinceId).toEqual('000')
+      expect(runProcess.success).toEqual(true)
+      expect(mockFns.get).toHaveBeenCalledTimes(7)
+      expect(mockFns.searchStatuses).toHaveBeenCalledTimes(7)
+      expect(mockFns.searchIterate).toHaveBeenCalledTimes(1)
     })
 
     test('New user run process', async () => {
@@ -528,25 +557,23 @@ describe('TwitterHelper class methods', () => {
       }
 
       const locData = nativeClone(data)
-      locData.lastRun = modifyDate(locData.time.todayDate, +3, 'h')
       locData.collectSince = '650'
-      locData.ids = {}
-      locData.ids.all = accounts.map(x => x.id_str)
-      locData.ids.toCheck = [...data.ids]
-
+      locData.accounts = Array.from(Array(20).keys()).map(x => ({ screen_name: `TwitterUserNum${x}` }))
       const runProcess = await twitterClient.run(locData, {
         maintenance: true,
       })
       runProcess.tweets = _.uniqBy(runProcess.tweets, 'id')
 
-      expect(runProcess.tweets).toHaveLength(12)
-      expect(mockFns.get).toHaveBeenCalledTimes(3)
-      expect(mockFns.get.mock.calls[0][1]).toHaveProperty('user_id')
-      expect(mockFns.get.mock.calls[1][1]).toHaveProperty('user_id')
-      expect(mockFns.get.mock.calls[2][1]).toHaveProperty('user_id')
+      expect(runProcess.tweets).toHaveLength(9)
+      expect(runProcess.sinceId).toBeFalsy()
+      expect(runProcess.success).toBe(true)
+
+      expect(mockFns.get).toHaveBeenCalledTimes(2)
+      expect(mockFns.searchStatuses).toHaveBeenCalledTimes(2)
+      expect(mockFns.searchIterate).toHaveBeenCalledTimes(2)
     })
 
-    test('New user run process with more than 1 timeline request per user', async () => {
+    test('New user run process with more than 100 tweets per query', async () => {
       mockApi.options = {
         run: true,
         maintenance: true,
@@ -554,24 +581,17 @@ describe('TwitterHelper class methods', () => {
       }
 
       const locData = nativeClone(data)
-      locData.lastRun = modifyDate(locData.time.todayDate, +3, 'h')
-      locData.collectSince = '650'
-      locData.ids = {}
-      locData.ids.all = accounts.map(x => x.id_str)
-      locData.ids.toCheck = [...data.ids]
-
+      locData.collectSince = '300'
+      locData.accounts = Array.from(Array(20).keys()).map(x => ({ screen_name: `TwitterUserNum${x}` }))
       const runProcess = await twitterClient.run(locData, {
         maintenance: true,
       })
-      runProcess.tweets = _.uniqBy(runProcess.tweets, 'id')
 
-      expect(runProcess.tweets).toHaveLength(219)
+      runProcess.tweets = _.uniqBy(runProcess.tweets, 'id')
       expect(mockFns.get).toHaveBeenCalledTimes(6)
-      expect(mockFns.get.mock.calls[0][1]).toHaveProperty('user_id')
-      expect(mockFns.get.mock.calls[0][1]).not.toHaveProperty('max_id')
-      expect(mockFns.get.mock.calls[1][1]).toHaveProperty('user_id')
-      expect(mockFns.get.mock.calls[1][1]).toHaveProperty('max_id')
-      expect(mockFns.get.mock.calls[2][1]).toHaveProperty('user_id')
+      expect(mockFns.searchStatuses).toHaveBeenCalledTimes(6)
+      expect(mockFns.searchIterate).toHaveBeenCalledTimes(2)
+      expect(runProcess.tweets).toHaveLength(549)
     })
   })
 })

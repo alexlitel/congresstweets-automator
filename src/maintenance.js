@@ -4,19 +4,19 @@ import path from 'path'
 import rp from 'request-promise'
 import fs from 'fs'
 import {
-    TwitterHelper,
+  TwitterHelper,
 } from './twitter'
 import {
   ChangeMessage,
 } from './helpers'
 import GithubHelper from './github'
 import {
-    createTimeObj,
-    getTime,
-    nativeClone,
-    extractAccounts,
-    serializeObj,
-    unserializeObj,
+  createTimeObj,
+  getTime,
+  nativeClone,
+  extractAccounts,
+  serializeObj,
+  unserializeObj,
 } from './util'
 
 export class Maintenance {
@@ -39,10 +39,10 @@ export class Maintenance {
 
         const activeAccounts = {}
         activeAccounts.new = extractedAccounts
-                                .filter(account => !redisData.deactivated[account.id])
+          .filter(account => !redisData.deactivated[account.id])
 
         activeAccounts.old = redisData.accounts
-                                      .filter(account => !redisData.deactivated[account.id])
+          .filter(account => !redisData.deactivated[account.id])
 
         ids.new = activeAccounts.new.map(x => x.id)
         ids.old = activeAccounts.old.map(x => x.id)
@@ -51,22 +51,22 @@ export class Maintenance {
         changes.list.remove = activeAccounts.old.filter(x => !ids.new.includes(x.id))
       } else {
         const listData = (await this.twitterClient.getListMembers(true))
-                            .map((account) => {
-                              const { id_str: id, name, screen_name } = account
-                              return { id, name, screen_name }
-                            })
+          .map((account) => {
+            const { id_str: id, name, screen_name } = account
+            return { id, name, screen_name }
+          })
 
         const mocData = serializedData
-                                    .map((x, i) =>
-                                      (x.type === 'member' && Object.assign({}, x, { index: i }))
+          .map((x, i) =>
+            (x.type === 'member' && Object.assign({}, x, { index: i }))
                                       || null)
-                                    .filter(item => item)
+          .filter(item => item)
         ids.list = listData.map(x => x.id)
         ids.moc = mocData.map(x => x.id.bioguide)
         ids.allExtracted = extractedAccounts.map(x => x.id)
         ids.mocExtracted = extractedAccounts
-                                  .filter(account => !!account.bioguide)
-                                  .map(account => account.id)
+          .filter(account => !!account.bioguide)
+          .map(account => account.id)
         ids.oldNames = extractedAccounts.map(x => x.screen_name.toLowerCase())
 
         const outsideData = {}
@@ -112,17 +112,16 @@ export class Maintenance {
           url: 'https://raw.githubusercontent.com/unitedstates/congress-legislators/gh-pages/legislators-social-media.json',
           json: true,
         })).filter(member =>
-            ids.extMembers.includes(member.id.bioguide)
+          ids.extMembers.includes(member.id.bioguide)
             && (member.social
-            && !!member.social.twitter),
-          )
+            && !!member.social.twitter))
           .map((item) => {
             const obj = {}
             obj.bioguide = item.id.bioguide
             obj.isNew = ids.membersAdd.includes(obj.bioguide)
             obj.index = obj.isNew
-                        ? ids.membersAdd.indexOf(obj.bioguide)
-                        : mocData[ids.moc.indexOf(obj.bioguide)].index
+              ? ids.membersAdd.indexOf(obj.bioguide)
+              : mocData[ids.moc.indexOf(obj.bioguide)].index
             obj.screen_name = item.social.twitter
             obj.id = item.social.twitter_id
             obj.name = outsideData.members[ids.extMembers.indexOf(obj.bioguide)].name
@@ -142,31 +141,33 @@ export class Maintenance {
           // Accounts that have been inactive for 30+ days, when Twitter deletes account
           // Or accounts that will be removed because members were removed in external data
           changes.list.deleted = await Object.keys(redisData.deactivated)
-                                  .map(x =>
-                                    Object.assign({},
-                                    extractedAccounts[ids.allExtracted.indexOf(x)],
-                                    { id: x },
-                                    ),
-                                  )
-                                  .filter(x =>
-                                    (redisData.deactivated[x.id] === redisData.time.todayDate
+            .map(x =>
+              Object.assign(
+                {},
+                extractedAccounts[ids.allExtracted.indexOf(x)],
+                { id: x },
+              ))
+            .filter(x =>
+              (redisData.deactivated[x.id] === redisData.time.todayDate
                                     && !ids.list.includes(x.id))
                                     || (x.bioguide
-                                    && !ids.extMembers.includes(x.bioguide)),
-                                   )
+                                    && !ids.extMembers.includes(x.bioguide)))
         }
         changes.list.renamed = listData.filter(x =>
-                                                !ids.oldNames.includes(x.screen_name.toLowerCase())
+          !ids.oldNames.includes(x.screen_name.toLowerCase())
                                                 && ids.allExtracted.includes(x.id))
-                                        .map((account) => {
-                                          const ind = ids.allExtracted.indexOf(account.id)
-                                          const oldRecord = extractedAccounts[ind]
-                                          return Object.assign({},
-                                                              oldRecord,
-                                            { screen_name: account.screen_name,
-                                              old_name: oldRecord.screen_name,
-                                            })
-                                        })
+          .map((account) => {
+            const ind = ids.allExtracted.indexOf(account.id)
+            const oldRecord = extractedAccounts[ind]
+            return Object.assign(
+              {},
+              oldRecord,
+              {
+                screen_name: account.screen_name,
+                old_name: oldRecord.screen_name,
+              },
+            )
+          })
 
         changes.members.update = outsideData.members.reduce((p, c) => {
           const ind = ids.moc.indexOf(c.id.bioguide)
@@ -186,12 +187,14 @@ export class Maintenance {
         changes.social.add = outsideData.social.filter(x => !ids.mocExtracted.includes(x.id))
       }
       changes.count = Object.keys(changes)
-                            .filter(x => typeof changes[x] === 'object')
-                            .reduce((p, c) =>
-                                p + _.values(changes[c])
-                                      .reduce((p2, c2) =>
-                                        p2 + c2.length, 0)
-                                , 0)
+        .filter(x => typeof changes[x] === 'object')
+        .reduce(
+          (p, c) =>
+            p + _.values(changes[c])
+              .reduce((p2, c2) =>
+                p2 + c2.length, 0)
+          , 0,
+        )
 
       if (!this.options.postBuild) {
         changes.historical = [
@@ -231,9 +234,7 @@ export class Maintenance {
           if (changes.list.add.length) {
             await this.twitterClient.updateList('create', changes.list.add)
             if (redisData.isActive && redisData.tweets.length) {
-              redisData.ids = {}
-              redisData.ids.all = fileData.accounts.map(x => x.id)
-              redisData.ids.toCheck = changes.list.add
+              redisData.accounts = changes.list.add
               const twitterData = await this.twitterClient.run(redisData, { maintenance: true })
               toStore.tweets = JSON.stringify(redisData.tweets.concat(twitterData.tweets))
             }
@@ -247,8 +248,10 @@ export class Maintenance {
 
         if (!this.options.noCommit && changes.historical) {
           historical.changed = false
-          historical.data = await JSON.parse(fs.readFileSync(path.join(__dirname,
-                '/../data/historical-users.json')))
+          historical.data = await JSON.parse(fs.readFileSync(path.join(
+            __dirname,
+            '/../data/historical-users.json',
+          )))
           historical.accounts = await extractAccounts(historical.data)
           historical.ids = {}
           historical.ids.moc = historical.data.map(x => (x.id && x.id.bioguide) || null)
@@ -258,22 +261,22 @@ export class Maintenance {
 
         if (redisData.users) {
           const accountsChanged = ['deleted', 'deactivated', 'reactivated'].some(x =>
-                                      changes.list[x].length)
+            changes.list[x].length)
           const serializableChanges = this.options.hasBot ?
-                                      _.omitBy(changes.list, (v, k) => k === 'deleted' || v.length)
-                                      : null
+            _.omitBy(changes.list, (v, k) => k === 'deleted' || v.length)
+            : null
 
           if (accountsChanged) {
             const idsToRemove = changes.list.reactivated
-                                                .concat(changes.list.deleted)
-                                                .map(x => x.id)
+              .concat(changes.list.deleted)
+              .map(x => x.id)
             toStore.deactivated = _.chain(redisData.deactivated)
-                                        .omit(idsToRemove)
-                                        .merge(changes.list.deactivated.reduce((p, c) => {
-                                          p[c.id] = redisData.time.todayDate
-                                          return p
-                                        }, {}))
-                                        .value()
+              .omit(idsToRemove)
+              .merge(changes.list.deactivated.reduce((p, c) => {
+                p[c.id] = redisData.time.todayDate
+                return p
+              }, {}))
+              .value()
           }
           if (serializableChanges && Object.keys(serializableChanges).length) {
             toStore.changes = serializableChanges
@@ -297,14 +300,14 @@ export class Maintenance {
         if (changes.list.renamed.length) {
           await bluebird.each(changes.list.renamed, (item) => {
             tempData.users[item.user_index]
-                    .accounts[item.account_index]
-                    .screen_name = item.screen_name
+              .accounts[item.account_index]
+              .screen_name = item.screen_name
             if (historical.data) {
               if (!historical.changed) historical.changed = true
               const histId = historical.ids.social.indexOf(item.id)
               const histAccount = historical.accounts[histId]
               const histRecord = tempData.historical_users[histAccount.user_index]
-                                              .accounts[histAccount.account_index]
+                .accounts[histAccount.account_index]
               if (!histRecord.prev_names) histRecord.prev_names = []
               histRecord.prev_names.push(histAccount.screen_name)
               histRecord.screen_name = item.screen_name
@@ -317,8 +320,8 @@ export class Maintenance {
           await bluebird.each(changes.social.add, (item) => {
             const newItem = _.omit(item, ['bioguide', 'name', 'index', 'isNew'])
             const record = item.isNew ?
-                        changes.members.add[item.index]
-                        : tempData.users[item.index]
+              changes.members.add[item.index]
+              : tempData.users[item.index]
             if (!record.accounts) record.accounts = []
             record.accounts.push(newItem)
             if (historical.data && historical.ids.moc.includes(item.bioguide)) {
@@ -339,16 +342,18 @@ export class Maintenance {
               const histId = historical.ids.moc.indexOf(item.id.bioguide)
               const histRecord = tempData.historical_users[histId]
               const diffs = ['chamber', 'state', 'party']
-                              .filter(prop => histRecord[prop] !== item[prop])
-                              .reduce((obj, prop) => {
-                                obj.old[prop] = histRecord[prop]
-                                obj.new[prop] = item[prop]
-                                return obj
-                              }, { old: {}, new: {} })
+                .filter(prop => histRecord[prop] !== item[prop])
+                .reduce((obj, prop) => {
+                  obj.old[prop] = histRecord[prop]
+                  obj.new[prop] = item[prop]
+                  return obj
+                }, { old: {}, new: {} })
               if (!histRecord.prev_props) histRecord.prev_props = []
-              histRecord.prev_props.push(Object.assign({},
-                                                        diffs.old,
-                                                        { until: redisData.time.yesterdayDate }))
+              histRecord.prev_props.push(Object.assign(
+                {},
+                diffs.old,
+                { until: redisData.time.yesterdayDate },
+              ))
               Object.assign(histRecord, diffs.new)
             }
           })
@@ -371,18 +376,20 @@ export class Maintenance {
               if (histId !== -1) {
                 const histRecord = tempData.historical_users[histId]
                 const diffs = ['chamber', 'state', 'party']
-                                .filter(prop => histRecord[prop] !== item[prop])
-                                .reduce((obj, prop) => {
-                                  obj.old[prop] = histRecord[prop]
-                                  obj.new[prop] = item[prop]
-                                  return obj
-                                }, { old: {}, new: {} })
+                  .filter(prop => histRecord[prop] !== item[prop])
+                  .reduce((obj, prop) => {
+                    obj.old[prop] = histRecord[prop]
+                    obj.new[prop] = item[prop]
+                    return obj
+                  }, { old: {}, new: {} })
                 if (Object.keys(diffs.old).length) {
                   if (!historical.changed) historical.changed = true
                   if (!histRecord.prev_props) histRecord.prev_props = []
-                  histRecord.prev_props.push(Object.assign({},
-                                                          diffs.old,
-                                                          { until: redisData.time.yesterdayDate }))
+                  histRecord.prev_props.push(Object.assign(
+                    {},
+                    diffs.old,
+                    { until: redisData.time.yesterdayDate },
+                  ))
                   Object.assign(histRecord, diffs.new)
                 }
               } else {
@@ -396,8 +403,8 @@ export class Maintenance {
         if (changes.historical || changes.file) {
           if (changes.historical) {
             tempData = historical.changed ?
-                      _.mapKeys(tempData, (v, k) => k.replace(/_/g, '-'))
-                      : _.omit(tempData, ['historical_users'])
+              _.mapKeys(tempData, (v, k) => k.replace(/_/g, '-'))
+              : _.omit(tempData, ['historical_users'])
           }
           await bluebird.each(Object.keys(tempData), (key) => {
             const data = this.constructor.sortAndFilter(tempData[key])
@@ -471,8 +478,10 @@ export class Maintenance {
       if (this.options.formatOnly) return await this.formatFiles()
       const fileData = {}
 
-      fileData.users = await JSON.parse(fs.readFileSync(path.join(__dirname,
-                '/../data/users.json')))
+      fileData.users = await JSON.parse(fs.readFileSync(path.join(
+        __dirname,
+        '/../data/users.json',
+      )))
 
       fileData.accounts = await extractAccounts(fileData.users)
 
@@ -486,19 +495,19 @@ export class Maintenance {
       if (this.redisClient) {
         isActive = (await this.redisClient.existsAsync('app')) && !this.options.app
         redisData = isActive ?
-                        unserializeObj(await this.redisClient.hgetallAsync('app'))
-                        : await this.initStore(fileData)
+          unserializeObj(await this.redisClient.hgetallAsync('app'))
+          : await this.initStore(fileData)
 
         if (this.options.app) return redisData
         redisData.time = _.chain(redisData)
-            .pick(['initDate', 'lastRun', 'lastUpdate'])
-            .mapValues(v => _.isNil(v) ? null : getTime(v))
-            .thru(timeProps => createTimeObj(timeProps))
-            .value()
+          .pick(['initDate', 'lastRun', 'lastUpdate'])
+          .mapValues(v => _.isNil(v) ? null : getTime(v))
+          .thru(timeProps => createTimeObj(timeProps))
+          .value()
         if (!this.options.postBuild && !redisData.time.yesterdayDate) {
           redisData.time.yesterdayDate = getTime(redisData.time.todayDate)
-                                                .subtract(1, 'days')
-                                                .format('YYYY-MM-DD')
+            .subtract(1, 'days')
+            .format('YYYY-MM-DD')
         }
         redisData.isActive = isActive
       } else {
@@ -522,7 +531,6 @@ export class Maintenance {
             }, [])
             return user
           })
-          redisData.accounts = await extractAccounts(redisData.users)
         }
         if (!redisData.deactivated) redisData.deactivated = {}
         if (!redisData.accounts) redisData.accounts = await extractAccounts(redisData.users)
@@ -541,8 +549,10 @@ export class Maintenance {
         }
         if (newData.toWrite && Object.keys(newData.toWrite).length) {
           if (this.options.selfUpdate && !this.options.noCommit) {
-            const commitMessage = await ChangeMessage.create(changes,
-                                      { ...this.options, isCommit: true })
+            const commitMessage = await ChangeMessage.create(
+              changes,
+              { ...this.options, isCommit: true },
+            )
             const runOptions = { recursive: true, message: commitMessage }
             await this.githubClient.run(newData, runOptions)
           } else {
@@ -575,15 +585,17 @@ export class Maintenance {
       if (!(config && config.GITHUB_TOKEN && config.GITHUB_CONFIG && config.SELF_REPO)) {
         throw new Error('Missing required props for Github client for self-updating maintenance')
       } else {
-        this.githubClient = new GithubHelper(config.GITHUB_TOKEN,
-          { owner: config.GITHUB_CONFIG.owner, repo: config.SELF_REPO })
+        this.githubClient = new GithubHelper(
+          config.GITHUB_TOKEN,
+          { owner: config.GITHUB_CONFIG.owner, repo: config.SELF_REPO },
+        )
       }
     }
 
     this.redisClient = redisStore
     this.config = config
     this.twitterClient = config && config.TWITTER_CONFIG ?
-                         new TwitterHelper(config.TWITTER_CONFIG, config.LIST_ID) : null
+      new TwitterHelper(config.TWITTER_CONFIG, config.LIST_ID) : null
     this.options = opts
   }
 }

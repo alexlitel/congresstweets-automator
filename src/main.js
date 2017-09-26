@@ -1,9 +1,9 @@
 import './load-env'
 import {
-    appBuilder,
+  appBuilder,
 } from './app'
 import {
-    APP_CONFIG,
+  APP_CONFIG,
 } from './config'
 import redisClient from './redis'
 

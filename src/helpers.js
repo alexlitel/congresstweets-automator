@@ -2,8 +2,8 @@ import _ from 'lodash'
 import flat from 'flat'
 import wrap from 'word-wrap'
 import {
-    getTime,
-    trimLeadingSpace,
+  getTime,
+  trimLeadingSpace,
 } from './util'
 
 // eslint-disable-next-line import/prefer-default-export
@@ -22,36 +22,38 @@ export class BuildMd {
 export class ChangeMessage {
   static flattenChanges(changes, { isCommit }) {
     const flatChanges = _.chain(flat(changes, { maxDepth: 2 }))
-                          .pickBy((v, k) => {
-                            const isValidArr = typeof v === 'object' && v.length
-                            if (isCommit) return isValidArr && !k.includes('tivate')
-                            return isValidArr
-                          })
-                          .mapKeys((v, key) => {
-                            let keyString = key.replace('.', ' ')
-                                                .replace(/(social|list)/, 'accounts')
-                            keyString = keyString.replace(/ed$/, 'e')
-                            return keyString
-                          })
-                          .toPairs()
-                          .orderBy(([key]) => [
-                            key.startsWith('members'),
-                            key.includes('add'),
-                            key.includes('remove'),
-                            key.startsWith('accounts'),
-                            key.includes('delete'),
-                            key.includes('rename'),
-                            key.includes('reactivate'),
-                          ], ['desc'])
-                          .value()
+      .pickBy((v, k) => {
+        const isValidArr = typeof v === 'object' && v.length
+        if (isCommit) return isValidArr && !k.includes('tivate')
+        return isValidArr
+      })
+      .mapKeys((v, key) => {
+        let keyString = key.replace('.', ' ')
+          .replace(/(social|list)/, 'accounts')
+        keyString = keyString.replace(/ed$/, 'e')
+        return keyString
+      })
+      .toPairs()
+      .orderBy(([key]) => [
+        key.startsWith('members'),
+        key.includes('add'),
+        key.includes('remove'),
+        key.startsWith('accounts'),
+        key.includes('delete'),
+        key.includes('rename'),
+        key.includes('reactivate'),
+      ], ['desc'])
+      .value()
 
     flatChanges.count = _.values(flatChanges).reduce((p, c) => p + c[1].length, 0)
     return flatChanges
   }
 
   static wrapChangeData(changeData, keyToString) {
-    return wrap(`${keyToString}${changeData.join(', ')}`,
-        { width: 72, trim: true, indent: '' })
+    return wrap(
+      `${keyToString}${changeData.join(', ')}`,
+      { width: 72, trim: true, indent: '' },
+    )
   }
 
   static changeKeyTense(key) {
@@ -64,40 +66,39 @@ export class ChangeMessage {
 
   static createCommitMessage(flatChanges) {
     const reduced = flatChanges
-          .sort(a => !/(add|delete|remove)/.test(a[0]))
-          .reduce((p, [key, val], i, a) => {
-            const isAddDelete = /(add|delete|remove)/.test(key)
-            let keyString = isAddDelete
-                          ? `${key.split(' ').pop()} `
-                          : 'update records'
-            if (i === 0) keyString = _.capitalize(keyString)
-            let mappedString
-            if (isAddDelete) {
-              const socOrList = key.includes('accounts')
-              let changeData = val.map((x, j, a2) =>
-                [
-                  j > 0 && j === a2.length - 1 ? '& ' : '',
-                  x.name || x,
-                  socOrList ? ` ${x.account_type}` : '',
-                ].join(''),
-               ).join(val.length > 2 ? ', ' : ' ')
-              if (socOrList) {
-                changeData = `${changeData} account${val.length > 1 ? 's' : ''}`
-              }
-              mappedString = `${keyString}${changeData}`
-            } else if (!p.includes('update records') && !p.includes('Update records')) {
-              mappedString = keyString
-            }
-            if (mappedString) {
-              if (i === a.length - 1 && i > 0) p.push(`& ${mappedString}`)
-              else p.push(mappedString)
-            } else if (i === a.length - 1 && i > 0) {
-              if (p[p.length - 1].includes('pdate reco')) {
-                p[p.length - 1] = `& ${p[p.length - 1]}`
-              }
-            }
-            return p
-          }, [])
+      .sort(a => !/(add|delete|remove)/.test(a[0]))
+      .reduce((p, [key, val], i, a) => {
+        const isAddDelete = /(add|delete|remove)/.test(key)
+        let keyString = isAddDelete
+          ? `${key.split(' ').pop()} `
+          : 'update records'
+        if (i === 0) keyString = _.capitalize(keyString)
+        let mappedString
+        if (isAddDelete) {
+          const socOrList = key.includes('accounts')
+          let changeData = val.map((x, j, a2) =>
+            [
+              j > 0 && j === a2.length - 1 ? '& ' : '',
+              x.name || x,
+              socOrList ? ` ${x.account_type}` : '',
+            ].join('')).join(val.length > 2 ? ', ' : ' ')
+          if (socOrList) {
+            changeData = `${changeData} account${val.length > 1 ? 's' : ''}`
+          }
+          mappedString = `${keyString}${changeData}`
+        } else if (!p.includes('update records') && !p.includes('Update records')) {
+          mappedString = keyString
+        }
+        if (mappedString) {
+          if (i === a.length - 1 && i > 0) p.push(`& ${mappedString}`)
+          else p.push(mappedString)
+        } else if (i === a.length - 1 && i > 0) {
+          if (p[p.length - 1].includes('pdate reco')) {
+            p[p.length - 1] = `& ${p[p.length - 1]}`
+          }
+        }
+        return p
+      }, [])
     return reduced.join(', ')
   }
 
@@ -161,6 +162,5 @@ export class ChangeMessage {
     const summary = this.summarizeChanges(flatChanges, changes, options)
     return `${summary}${changeString}`
   }
-
 }
 
