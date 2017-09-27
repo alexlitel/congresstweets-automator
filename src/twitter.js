@@ -290,7 +290,7 @@ export class TwitterHelper {
 
       if (isMaintenance) await this.switchAuthType()
       while (count < queries.length) {
-        const tweets = await this.searchIterate(queries[count], sinceId, maxId, time)
+        const tweets = await this.searchIterate(decodeURIComponent(queries[count]), sinceId, maxId, time)
         if (tweets.length) {
           if (!isMaintenance && !newSinceId) newSinceId = tweets[0].id
           if (time.yesterdayDate) {

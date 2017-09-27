@@ -57,10 +57,14 @@ export class App {
         data.tweets = await _.uniqBy(data.tweets.concat(twitterData.tweets.yesterday), 'id')
 
         await new GithubHelper(this.config.GITHUB_TOKEN, this.config.GITHUB_CONFIG).run(data)
+        // eslint-disable-next-line no-console
+        console.log(`Updated Github repo with new dataset of ${data.tweets.length} for ${data.time.yesterdayDate}`)
         newData.lastUpdate = data.time.todayDate
       }
 
       newData.lastRun = data.time.now
+      // eslint-disable-next-line no-console
+      console.log(`Successful run process, collected ${(twitterData.tweets.yesterday || twitterData.tweets).length} new tweets`)
       await this.redisClient.hmsetAsync('app', serializeObj(newData))
       return true
     } catch (e) {

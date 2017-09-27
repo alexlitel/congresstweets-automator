@@ -9,7 +9,6 @@ import {
 import {
   nativeClone,
   extractAccounts,
-  prettyPrint,
   buildQueries,
 } from '../src/util'
 import {
