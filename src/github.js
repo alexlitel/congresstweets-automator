@@ -1,5 +1,4 @@
 import GithubApi from 'github'
-import unionBy from 'lodash/unionBy'
 import toPairs from 'lodash/toPairs'
 import bluebird from 'bluebird'
 import {
@@ -81,7 +80,7 @@ export default class GithubHelper {
   async getTree(time, sha, blobs, recursive) {
     try {
       await this.checkValidity()
-      const { tree } = (await this.client
+      const { tree, sha: treeSha } = (await this.client
         .gitdata
         .getTree({
           ...this.config,
@@ -90,11 +89,11 @@ export default class GithubHelper {
         })).data
       if (!recursive) {
         if (time.deleteDate) {
-          return tree.filter(item => !item.path.includes(time.deleteDate)).concat(blobs)
+          return { tree: tree.filter(item => !item.path.includes(time.deleteDate)).concat(blobs) }
         }
-        return tree.concat(blobs)
+        return { tree: tree.concat(blobs) }
       }
-      return unionBy(blobs, tree, 'path')
+      return { tree: blobs, base_tree: treeSha }
     } catch (e) {
       return Promise.reject(e)
     }
@@ -103,11 +102,12 @@ export default class GithubHelper {
   async createTree(tree) {
     try {
       await this.checkValidity()
+
       return (await this.client
         .gitdata
         .createTree({
           ...this.config,
-          tree,
+          ...tree,
         })).data.sha
     } catch (e) {
       return Promise.reject(e)
@@ -163,7 +163,7 @@ export default class GithubHelper {
       await this
         .createBlobs(data, recursive)
         .then(blobs => this.getTree(data.time, headSha, blobs, recursive))
-        .then(tree => this.createTree(tree))
+        .then(tree => this.createTree(tree, recursive))
         .then(createdTree => this.createCommit(createdTree, data.time, headSha, message))
         .then(commit => this.updateReference(commit))
 

@@ -3,10 +3,10 @@ import path from 'path'
 import MockApi from './helpers/api-mock'
 import GithubHelper from '../src/github'
 import {
-    testConfig,
+  testConfig,
 } from './util/test-util'
 import {
-    nativeClone,
+  nativeClone,
 } from '../src/util'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 60000
@@ -143,39 +143,38 @@ describe('Github helper methods', () => {
     describe('getTree', () => {
       test('Retrieves tree', async () => {
         const blobs = ['data/DATE.json', '_posts/DATE--tweets.md']
-                    .map(x => ({
-                      sha: 'foo',
-                      url: 'foo',
-                      path: x.replace('DATE', '2017-02-02'),
-                      type: 'blob',
-                      mode: '100644',
-                    }))
+          .map(x => ({
+            sha: 'foo',
+            url: 'foo',
+            path: x.replace('DATE', '2017-02-02'),
+            type: 'blob',
+            mode: '100644',
+          }))
         const tree = await githubClient.getTree(data.time, 'foo', blobs)
 
-        expect(tree).toEqual(expect.arrayContaining(blobs))
-        expect(tree).toHaveLength(11)
+        expect(tree).toEqual({ tree: expect.arrayContaining(blobs) })
+        expect(tree.tree).toHaveLength(11)
       })
 
       test('Retrieves tree and omits files from X date when deleteDate set', async () => {
         const blobs = ['data/DATE.json', '_posts/DATE--tweets.md']
-                    .map(x => ({
-                      sha: 'foo',
-                      url: 'foo',
-                      path: x.replace('DATE', '2017-02-02'),
-                      type: 'blob',
-                      mode: '100644',
-                    }))
+          .map(x => ({
+            sha: 'foo',
+            url: 'foo',
+            path: x.replace('DATE', '2017-02-02'),
+            type: 'blob',
+            mode: '100644',
+          }))
         const locData = nativeClone(data)
         locData.time.deleteDate = '2017-06-01'
         const tree = await githubClient.getTree(locData.time, 'foo', blobs)
 
-        expect(tree).toEqual(expect.arrayContaining(blobs))
-        expect(tree).toEqual(expect.arrayContaining(blobs))
-        expect(tree.map(item => item.path)).not.toContain('data/2017-06-01.json')
-        expect(tree).toHaveLength(9)
+        expect(tree).toEqual({ tree: expect.arrayContaining(blobs) })
+        expect(tree.tree.map(item => item.path)).not.toContain('data/2017-06-01.json')
+        expect(tree.tree).toHaveLength(9)
       })
 
-      test('Retrieves tree with overwritten files when self-updating class option set', async () => {
+      test('Retrieves tree with new files when self-updating class option set', async () => {
         mockApi.options = {
           recursive: true,
         }
@@ -185,19 +184,19 @@ describe('Github helper methods', () => {
           'historical-users',
           'historical-users-filtered',
         ]
-                    .map(x => ({
-                      sha: 'foo',
-                      url: 'foo',
-                      path: `data/${x}.json`,
-                      type: 'blob',
-                      mode: '100644',
-                    }))
+          .map(x => ({
+            sha: 'foo',
+            url: 'foo',
+            path: `data/${x}.json`,
+            type: 'blob',
+            mode: '100644',
+          }))
 
         const tree = await githubClient.getTree(data.time, 'foo', blobs, true)
 
-        expect(tree).toEqual(expect.arrayContaining(blobs))
-        expect(tree.filter(item => item.path.includes('historical-users-filtered'))).toHaveLength(1)
-        expect(tree).toHaveLength(13)
+        expect(tree).toEqual({ tree: blobs, base_tree: expect.any(String) })
+        expect(tree.tree.filter(item => item.path.includes('historical-users-filtered'))).toHaveLength(1)
+        expect(tree.tree).toHaveLength(4)
       })
     })
 
@@ -208,19 +207,43 @@ describe('Github helper methods', () => {
           'historical-users',
           'historical-users-filtered',
         ]
-                    .map(x => ({
-                      sha: 'foo',
-                      url: 'foo',
-                      path: `data/${x}.json`,
-                      type: 'blob',
-                      mode: '100644',
-                    }))
+          .map(x => ({
+            sha: 'foo',
+            url: 'foo',
+            path: `data/${x}.json`,
+            type: 'blob',
+            mode: '100644',
+          }))
 
-        const createdTree = await githubClient.createTree(blobs)
+        const createdTree = await githubClient.createTree({ tree: blobs })
 
         expect(mockFns.createTree).toBeCalledWith(expect.objectContaining({
           ...githubClient.config,
           tree: blobs,
+        }))
+        expect(createdTree).toEqual(expect.any(String))
+      })
+
+      test('Creates tree on top of base_tree', async () => {
+        const blobs = ['users',
+          'users-filtered',
+          'historical-users',
+          'historical-users-filtered',
+        ]
+          .map(x => ({
+            sha: 'foo',
+            url: 'foo',
+            path: `data/${x}.json`,
+            type: 'blob',
+            mode: '100644',
+          }))
+
+        const createdTree = await githubClient.createTree({ tree: blobs, base_tree: 'foo' })
+
+        expect(mockFns.createTree).toBeCalledWith(expect.objectContaining({
+          ...githubClient.config,
+          tree: blobs,
+          base_tree: 'foo',
         }))
         expect(createdTree).toEqual(expect.any(String))
       })

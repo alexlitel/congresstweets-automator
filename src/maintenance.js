@@ -594,7 +594,7 @@ export class Maintenance {
 
     this.redisClient = redisStore
     this.config = config
-    this.twitterClient = config && config.TWITTER_CONFIG ?
+    this.twitterClient = config && _.has(config, 'TWITTER_CONFIG.consumer_key') ?
       new TwitterHelper(config.TWITTER_CONFIG, config.LIST_ID) : null
     this.options = opts
   }
