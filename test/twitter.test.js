@@ -31,17 +31,17 @@ const loadData = () => {
 
 beforeAll(() => {
   loadData()
-  mockApi = new MockApi('twitter')
-  mockApi.init('twitter')
+  mockApi = new MockApi()
+  mockApi.init()
 })
 
 afterAll(() => {
   jest.resetModules()
 })
 
-describe('Tweet data', () => {
-  test('All users are labeled properly and have valid twitter info', async () => {
-    const users = await JSON.parse(fs.readFileSync(path.join(__dirname, '/../data/users-filtered.json')))
+describe('Twitter user data', () => {
+  test('All users are labeled properly and have valid twitter info', () => {
+    const users = JSON.parse(fs.readFileSync(path.join(__dirname, '/../data/users-filtered.json')))
     const usersLength = users.length
     const filteredWithNames = users.filter(user => !!user.name).length
     const usersWithValidInfo = users.filter(user => user.accounts
@@ -53,97 +53,156 @@ describe('Tweet data', () => {
   })
 })
 
-describe('Tweet class', () => {
+
+describe('Tweet class methods', () => {
   let tweetData
 
-  beforeAll(() => {
+  beforeEach(() => {
     tweetData = JSON.parse(fs.readFileSync(path.join(__dirname, '/data/mock-data.json'))).twitter.tweets
   })
 
-  test('Normal tweet instantiates correctly', () => {
-    expect(new Tweet(tweetData[0])).toEqual({
-      id: '0',
-      screen_name: 'TwitterUser',
-      user_id: '123',
-      time: '2017-06-13T16:43:24-04:00',
-      link: 'https://www.twitter.com/TwitterUser/statuses/0',
-      text: 'Normal tweet. No link. No anything else.',
-      source: 'Twitter Web Client',
+  describe('getLink', () => {
+    test('Returns correct link for normal tweet', () => {
+      const fakeTweet = { user: { screen_name: 'NormalUser' }, id_str: '123' }
+      expect(Tweet.getLink(fakeTweet)).toBe('https://www.twitter.com/NormalUser/statuses/123')
+    })
+
+    test('Returns correct link for retweet', () => {
+      const fakeTweet = { retweeted_status: { user: { screen_name: 'RetweetUser' }, id_str: '123' } }
+      expect(Tweet.getLink(fakeTweet, true)).toBe('https://www.twitter.com/RetweetUser/statuses/123')
     })
   })
 
-  test('Tweet with link instantiates correctly', () => {
-    expect(new Tweet(tweetData[1])).toEqual({
-      id: '1',
-      screen_name: 'TwitterUser',
-      user_id: '123',
-      time: '2017-06-13T16:44:06-04:00',
-      link: 'https://www.twitter.com/TwitterUser/statuses/1',
-      text: 'Tweet with link.\nhttps://www.google.com/',
-      source: 'TweetDeck',
+  describe('replaceUrls', () => {
+    test('Replaces non-media t.co link with expanded url', async () => {
+      await expect(Tweet.replaceUrls(tweetData[1])).resolves.toBe('Tweet with link. https://www.google.com/')
+    })
+
+    test('Replaces non-media t.co link of another shortened url with actual url', async () => {
+      await expect(Tweet.replaceUrls(tweetData[7])).resolves.toBe('Tweet with shortened link. http://www.testurl.com/actualpage')
+    })
+
+    test('Replaces image t.co link with media url', async () => {
+      await expect(Tweet.replaceUrls(tweetData[5])).resolves.toBe('Tweet with photo http://pbs.twimg.com/media/DCOpX7SWAAE0pWc.png')
+    })
+
+    test('Replaces video t.co link with media and video still urls', async () => {
+      await expect(Tweet.replaceUrls(tweetData[6])).resolves.toBe('Tweet with video http://pbs.twimg.com/amplify_video_thumb/874658940944035840/img/qAQK2rt7voeKdDo-.jpg https://video.twimg.com/amplify_video/874658940944035840/vid/320x180/g4qkKz4qtd4O0DY8.mp4')
     })
   })
-
-  test('Quoted tweet instantiates correctly', () => {
-    expect(new Tweet(tweetData[2])).toEqual({
-      id: '2',
-      screen_name: 'TwitterUser',
-      user_id: '123',
-      time: '2017-06-13T16:42:43-04:00',
-      link: 'https://www.twitter.com/TwitterUser/statuses/2',
-      text: 'Tweet with quoted tweet https://twitter.com/tweetuser/status/123 QT @TwitterUser @FooUser Tweet being quoted http://pbs.twimg.com/media/foo.jpg',
-      source: 'Twitter Web Client',
+  describe('parseText', () => {
+    test('Parses text of normal tweet', async () => {
+      await expect(Tweet.parseText(tweetData[1])).resolves.toBe('Tweet with link. https://www.google.com/')
+    })
+    test('Parses text of quote tweet', async () => {
+      await expect(Tweet.parseText(tweetData[2], false, true)).resolves.toBe('Tweet with quoted tweet https://twitter.com/tweetuser/status/123 QT @TwitterUser @FooUser Tweet being quoted http://pbs.twimg.com/media/foo.jpg')
+    })
+    test('Parses text of retweet', async () => {
+      await expect(Tweet.parseText(tweetData[3], true)).resolves.toBe('RT @TwitterUser Retweeted tweet')
+    })
+    test('Parses text of retweet with quote tweet', async () => {
+      await expect(Tweet.parseText(tweetData[4], true, true)).resolves.toBe('RT @TwitterUser Retweet with quoted tweet https://twitter.com/FooUser/status/874720122476384259 QT @TwitterUser Quoted tweet https://twitter.com/twitterUser/status/874696002325929984')
     })
   })
-
-  test('Retweet instantiates correctly', () => {
-    expect(new Tweet(tweetData[3])).toEqual({
-      id: '3',
-      screen_name: 'TwitterUser',
-      user_id: '123',
-      time: '2017-06-13T16:38:57-04:00',
-      link: 'https://www.twitter.com/TwitterUser/statuses/123',
-      text: 'RT @TwitterUser Retweeted tweet http://hubs.ly/H07NNZ70',
-      source: 'Twitter Web Client',
+  describe('create', () => {
+    test('Normal tweet instantiates correctly', async () => {
+      await expect(Tweet.create(tweetData[0])).resolves.toEqual({
+        id: '0',
+        screen_name: 'TwitterUser',
+        user_id: '123',
+        time: '2017-06-13T16:43:24-04:00',
+        link: 'https://www.twitter.com/TwitterUser/statuses/0',
+        text: 'Normal tweet. No link. No anything else.',
+        source: 'Twitter Web Client',
+      })
     })
-  })
 
-  test('Retweet with quoted tweet instantiates correctly', () => {
-    expect(new Tweet(tweetData[4])).toEqual({
-      id: '4',
-      screen_name: 'TwitterUser',
-      user_id: '123',
-      time: '2017-06-13T16:42:31-04:00',
-      link: 'https://www.twitter.com/TwitterUser/statuses/874728532336934914',
-      text: 'RT @TwitterUser Retweet with quoted tweet https://twitter.com/FooUser/status/874720122476384259 QT @TwitterUser Quoted tweet https://twitter.com/twitterUser/status/874696002325929984',
-      source: 'Twitter Web Client',
+    test('Tweet with link instantiates correctly', async () => {
+      await expect(Tweet.create(tweetData[1])).resolves.toEqual({
+        id: '1',
+        screen_name: 'TwitterUser',
+        user_id: '123',
+        time: '2017-06-13T16:44:06-04:00',
+        link: 'https://www.twitter.com/TwitterUser/statuses/1',
+        text: 'Tweet with link. https://www.google.com/',
+        source: 'TweetDeck',
+      })
     })
-  })
 
-  test('Tweet with photo instantiates correctly', () => {
-    expect(new Tweet(tweetData[5])).toEqual({
-      id: '5',
-      screen_name: 'TwitterUser',
-      user_id: '123',
-      time: '2017-06-13T16:43:37-04:00',
-      link: 'https://www.twitter.com/TwitterUser/statuses/5',
-      text: 'Tweet with photo http://pbs.twimg.com/media/DCOpX7SWAAE0pWc.png',
-      source: 'Twitter Web Client',
+    test('Tweet with shortened link instantiates correctly', async () => {
+      await expect(Tweet.create(tweetData[7])).resolves.toEqual({
+        id: '7',
+        screen_name: 'TwitterUser',
+        user_id: '123',
+        time: '2017-06-13T16:44:06-04:00',
+        link: 'https://www.twitter.com/TwitterUser/statuses/7',
+        text: 'Tweet with shortened link. http://www.testurl.com/actualpage',
+        source: 'TweetDeck',
+      })
     })
-  })
 
-  test('Tweet with video instantiates correctly', () => {
-    expect(new Tweet(tweetData[6])).toEqual({
-      id: '6',
-      screen_name: 'TwitterUser',
-      user_id: '123',
-      time: '2017-06-13T15:14:09-04:00',
-      link: 'https://www.twitter.com/TwitterUser/statuses/6',
-      text: 'Tweet with video http://pbs.twimg.com/amplify_video_thumb/874658940944035840/img/qAQK2rt7voeKdDo-.jpg https://video.twimg.com/amplify_video/874658940944035840/vid/640x360/mKKd-Mw7Oc7_Ueby.mp4',
-      source: 'Media Studio',
+    test('Quoted tweet instantiates correctly', async () => {
+      await expect(Tweet.create(tweetData[2])).resolves.toEqual({
+        id: '2',
+        screen_name: 'TwitterUser',
+        user_id: '123',
+        time: '2017-06-13T16:42:43-04:00',
+        link: 'https://www.twitter.com/TwitterUser/statuses/2',
+        text: 'Tweet with quoted tweet https://twitter.com/tweetuser/status/123 QT @TwitterUser @FooUser Tweet being quoted http://pbs.twimg.com/media/foo.jpg',
+        source: 'Twitter Web Client',
+      })
+    })
+
+    test('Retweet instantiates correctly', async () => {
+      await expect(Tweet.create(tweetData[3])).resolves.toEqual({
+        id: '3',
+        screen_name: 'TwitterUser',
+        user_id: '123',
+        time: '2017-06-13T16:38:57-04:00',
+        link: 'https://www.twitter.com/TwitterUser/statuses/123',
+        text: 'RT @TwitterUser Retweeted tweet',
+        source: 'Twitter Web Client',
+      })
+    })
+
+    test('Retweet with quoted tweet instantiates correctly', async () => {
+      await expect(Tweet.create(tweetData[4])).resolves.toEqual({
+        id: '4',
+        screen_name: 'TwitterUser',
+        user_id: '123',
+        time: '2017-06-13T16:42:31-04:00',
+        link: 'https://www.twitter.com/TwitterUser/statuses/874728532336934914',
+        text: 'RT @TwitterUser Retweet with quoted tweet https://twitter.com/FooUser/status/874720122476384259 QT @TwitterUser Quoted tweet https://twitter.com/twitterUser/status/874696002325929984',
+        source: 'Twitter Web Client',
+      })
+    })
+
+    test('Tweet with photo instantiates correctly', async () => {
+      await expect(Tweet.create(tweetData[5])).resolves.toEqual({
+        id: '5',
+        screen_name: 'TwitterUser',
+        user_id: '123',
+        time: '2017-06-13T16:43:37-04:00',
+        link: 'https://www.twitter.com/TwitterUser/statuses/5',
+        text: 'Tweet with photo http://pbs.twimg.com/media/DCOpX7SWAAE0pWc.png',
+        source: 'Twitter Web Client',
+      })
+    })
+
+    test('Tweet with video instantiates correctly', async () => {
+      await expect(Tweet.create(tweetData[6])).resolves.toEqual({
+        id: '6',
+        screen_name: 'TwitterUser',
+        user_id: '123',
+        time: '2017-06-13T15:14:09-04:00',
+        link: 'https://www.twitter.com/TwitterUser/statuses/6',
+        text: 'Tweet with video http://pbs.twimg.com/amplify_video_thumb/874658940944035840/img/qAQK2rt7voeKdDo-.jpg https://video.twimg.com/amplify_video/874658940944035840/vid/320x180/g4qkKz4qtd4O0DY8.mp4',
+        source: 'Media Studio',
+      })
     })
   })
 })
+
 
 describe('TwitterHelper class methods', () => {
   let twitterClient
@@ -174,10 +233,6 @@ describe('TwitterHelper class methods', () => {
     }
     mockFns.get = jest.spyOn(twitterClient.client, 'get')
     mockFns.post = jest.spyOn(twitterClient.client, 'post')
-  })
-
-  afterAll(() => {
-    MockApi.cleanMocks()
   })
 
   describe('Constructor method', () => {
@@ -220,7 +275,7 @@ describe('TwitterHelper class methods', () => {
     })
 
     describe('getList', () => {
-      test('Retrieving list data', async () => {
+      test('Retrieves list data', async () => {
         await expect(twitterClient.getList()).resolves.toEqual(expect.objectContaining({
           following: true,
         }))
@@ -228,17 +283,17 @@ describe('TwitterHelper class methods', () => {
       })
 
       test('Throws err without list id', async () => {
-        await expect(errClient.getList()).rejects.toEqual(idErr)
+        await expect(errClient.getList()).rejects.toThrow(idErr)
       })
     })
 
     describe('getListMembers', () => {
-      test('Retrieving users from list', async () => {
+      test('Retrieves users from list', async () => {
         await expect(twitterClient.getListMembers()).resolves.toHaveLength(100)
         expect(mockFns.get).toBeCalledWith('lists/members', { list_id: '123456789', count: 5000 })
       })
 
-      test('Retrieving users from list w/o statuses when noStatuses argument is true', async () => {
+      test('Retrieves users from list w/o statuses when noStatuses argument is true', async () => {
         const listData = await twitterClient.getListMembers(true)
         expect(listData).toHaveLength(100)
         expect(listData[0]).not.toHaveProperty('statuses')
@@ -246,19 +301,19 @@ describe('TwitterHelper class methods', () => {
       })
 
       test('Throws err without list id', async () => {
-        await expect(errClient.getList()).rejects.toEqual(idErr)
+        await expect(errClient.getList()).rejects.toThrow(idErr)
       })
     })
 
     describe('createList', () => {
-      test('Creating new list without arguments', async () => {
+      test('Creates new list without arguments', async () => {
         await expect(twitterClient.createList()).resolves.toEqual(expect.objectContaining({
           name: 'congress',
         }))
         expect(mockFns.post).toBeCalledWith('lists/create', { name: 'congress', mode: 'private' })
       })
 
-      test('Creating new list with argument', async () => {
+      test('Creates new list with argument', async () => {
         await expect(twitterClient.createList('foo')).resolves.toEqual(expect.objectContaining({
           name: 'foo',
         }))
@@ -269,7 +324,7 @@ describe('TwitterHelper class methods', () => {
     describe('updateList', () => {
       afterAll(() => mockApi.resetOptions())
 
-      test('Adding users to list', async () => {
+      test('Adds users to list', async () => {
         const listBeforeAdd = (await twitterClient.getList()).member_count
         await twitterClient.updateList('create', accounts.map(account => account.id_str))
         const listAfterAdd = (await twitterClient.getList()).member_count
@@ -278,7 +333,7 @@ describe('TwitterHelper class methods', () => {
       })
 
 
-      test('Removing users from list', async () => {
+      test('Removes users from list', async () => {
         const listBeforeRemove = (await twitterClient.getList()).member_count
         await twitterClient.updateList('destroy', accounts.map(account => account.id_str))
         const listAfterRemove = (await twitterClient.getList()).member_count
@@ -295,15 +350,15 @@ describe('TwitterHelper class methods', () => {
       })
 
       test('Throws err without list id', async () => {
-        await expect(errClient.updateList()).rejects.toEqual(idErr)
+        await expect(errClient.updateList()).rejects.toThrow(idErr)
       })
 
       test('Throws err without action', async () => {
-        await expect(twitterClient.updateList(null)).rejects.toEqual(new Error('Valid list action is required'))
+        await expect(twitterClient.updateList(null)).rejects.toThrow(new Error('Valid list action is required'))
       })
 
       test('Throws err without ids', async () => {
-        await expect(twitterClient.updateList('create', null)).rejects.toEqual(new Error('Need user ids to perform list action'))
+        await expect(twitterClient.updateList('create', null)).rejects.toThrow(new Error('Need user ids to perform list action'))
       })
     })
   })
@@ -316,7 +371,7 @@ describe('TwitterHelper class methods', () => {
     })
 
     describe('getUser', () => {
-      test('Retrieving user data', async () => {
+      test('Retrieves user data', async () => {
         await expect(twitterClient.getUser('12345')).resolves.toEqual(expect.objectContaining({
           id_str: '12345',
         }))
@@ -331,25 +386,31 @@ describe('TwitterHelper class methods', () => {
       })
 
       test('Throws err without list id', async () => {
-        await expect(twitterClient.getUser()).rejects.toEqual(idErr)
+        await expect(twitterClient.getUser()).rejects.toThrow(idErr)
       })
     })
 
     describe('isAccountValid', () => {
-      test('Returns true for id', async () => {
-        await expect(twitterClient.isAccountValid('1')).resolves.toEqual(true)
-        await expect(twitterClient.isAccountValid('foo')).resolves.toEqual(true)
-        expect(mockFns.get.mock.calls[0]).toEqual(['users/show', { user_id: '1' }])
-        expect(mockFns.get.mock.calls[1]).toEqual(['users/show', { screen_name: 'foo' }])
+      test('Returns true for valid id integer', async () => {
+        await expect(twitterClient.isAccountValid('1')).resolves.toBe(true)
+        expect(mockFns.get).toBeCalledWith('users/show', { user_id: '1' })
       })
 
-      test('Returns false for invalid id', async () => {
-        await expect(twitterClient.isAccountValid('100')).resolves.toEqual(false)
-        await expect(twitterClient.isAccountValid('reject')).resolves.toEqual(false)
+      test('Returns true for valid username', async () => {
+        await expect(twitterClient.isAccountValid('foo')).resolves.toBe(true)
+        expect(mockFns.get).toBeCalledWith('users/show', { screen_name: 'foo' })
+      })
+
+      test('Returns false for invalid id integer', async () => {
+        await expect(twitterClient.isAccountValid('100')).resolves.toBe(false)
+      })
+
+      test('Returns false for invalid username', async () => {
+        await expect(twitterClient.isAccountValid('reject')).resolves.toBe(false)
       })
 
       test('Throws err without list id', async () => {
-        await expect(twitterClient.isAccountValid()).rejects.toEqual(idErr)
+        await expect(twitterClient.isAccountValid()).rejects.toThrow(idErr)
       })
     })
   })
@@ -403,7 +464,7 @@ describe('TwitterHelper class methods', () => {
       })
 
       test('Throws err without query', async () => {
-        await expect(twitterClient.searchStatuses()).rejects.toEqual(new Error('Query required for search'))
+        await expect(twitterClient.searchStatuses()).rejects.toThrow('Query required for search')
       })
     })
 
@@ -423,6 +484,7 @@ describe('TwitterHelper class methods', () => {
         }
         const result = await twitterClient.searchIterate(query, '225', null, data.time)
         expect(result).toHaveLength(225)
+        expect(result.every(async item => item instanceof Tweet)).toBeTruthy()
         expect(mockFns.searchStatuses).toHaveBeenCalledTimes(3)
         expect(mockFns.get).toHaveBeenCalledTimes(3)
       })

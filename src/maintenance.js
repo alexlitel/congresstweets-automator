@@ -52,6 +52,7 @@ export class Maintenance {
       } else {
         const listData = (await this.twitterClient.getListMembers(true))
           .map((account) => {
+            // eslint-disable-next-line camelcase
             const { id_str: id, name, screen_name } = account
             return { id, name, screen_name }
           })
@@ -139,7 +140,8 @@ export class Maintenance {
           }, { deactivated: [], reactivated: [] })
 
           // Accounts that have been inactive for 30+ days, when Twitter deletes account
-          // Or accounts that will be removed because members were removed in external data
+          // Or deactivated accounts that will be removed because
+          // members were removed in external data
           changes.list.deleted = await Object.keys(redisData.deactivated)
             .map(x =>
               Object.assign(
@@ -427,7 +429,8 @@ export class Maintenance {
   async initStore({ users, accounts }) {
     try {
       const obj = {
-        initDate: (this.options.app ? getTime().startOf('hour') : getTime().startOf('hour').add(1, 'h')).format('YYYY-MM-DD'),
+        initDate: this.config.INIT_DATE || (this.options.app ?
+          getTime().startOf('hour') : getTime().startOf('hour').add(1, 'h')).format('YYYY-MM-DD'),
         lastRun: null,
         lastUpdate: null,
         sinceId: null,

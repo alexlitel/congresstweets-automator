@@ -1,4 +1,5 @@
 import moment from 'moment-timezone'
+import rp from 'request-promise'
 import camelCase from 'lodash/camelCase'
 import mapValues from 'lodash/mapValues'
 import isNil from 'lodash/isNil'
@@ -134,3 +135,17 @@ export const parsedFlags = pick(yargsParser(process.argv.slice(2), {
     'self-update': ['s', 'self', 'su', 'selfupdate'],
   },
 }), ['formatOnly', 'hasBot', 'initList', 'localStore', 'noCommit', 'postBuild', 'selfUpdate'])
+
+
+export const getActualUrl = async (url) => {
+  try {
+    return (await rp.head({
+      simple: false,
+      followRedirect: false,
+      followOriginalHttpMethod: true,
+      url,
+    })).location || url
+  } catch (e) {
+    return url
+  }
+}

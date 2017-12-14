@@ -1,21 +1,22 @@
 import {
-    extractAccounts,
-    getTime,
-    nativeClone,
-    checkDateValidity,
-    buildQueries,
-    serializeObj,
-    createTimeObj,
-    getFullPartyName,
-    prettyPrint,
-    trimLeadingSpace,
-    unserializeObj,
+  extractAccounts,
+  getTime,
+  nativeClone,
+  checkDateValidity,
+  buildQueries,
+  serializeObj,
+  createTimeObj,
+  getActualUrl,
+  getFullPartyName,
+  prettyPrint,
+  trimLeadingSpace,
+  unserializeObj,
 } from '../src/util'
 import {
-    generateTimeProps,
-    modifyDate,
+  generateTimeProps,
+  modifyDate,
 } from './util/test-util'
-import fs from 'fs'
+import MockApi from './helpers/api-mock'
 
 describe('Utility function tests', () => {
   describe('Time utility functions', () => {
@@ -94,9 +95,11 @@ describe('Utility function tests', () => {
       })
 
       test('Returns time object during normal app process', () => {
-        const data = generateTimeProps(modifyDate(date, -2, 'days').format('YYYY-MM-DD'),
-                                                modifyDate(date, -3, 'hours').startOf('hour'),
-                                                getTime(date).startOf('day'))
+        const data = generateTimeProps(
+          modifyDate(date, -2, 'days').format('YYYY-MM-DD'),
+          modifyDate(date, -3, 'hours').startOf('hour'),
+          getTime(date).startOf('day'),
+        )
 
         expect(createTimeObj(data)).toMatchObject({
           now: getTime(date).startOf('hour').format(),
@@ -105,9 +108,11 @@ describe('Utility function tests', () => {
       })
 
       test('Returns object with yesterday properties when last run date is yesterday', () => {
-        const data = generateTimeProps(modifyDate(date, -2, 'days').format('YYYY-MM-DD'),
-                                                    modifyDate(date, -3, 'hours').startOf('hour'),
-                                                    modifyDate(date, -1, 'days').startOf('day'))
+        const data = generateTimeProps(
+          modifyDate(date, -2, 'days').format('YYYY-MM-DD'),
+          modifyDate(date, -3, 'hours').startOf('hour'),
+          modifyDate(date, -1, 'days').startOf('day'),
+        )
 
         expect(createTimeObj(data)).toMatchObject({
           now: getTime(date).startOf('hour').format(),
@@ -118,9 +123,11 @@ describe('Utility function tests', () => {
       })
 
       test('Returns object with delete date property when init date > 100 days prior', () => {
-        const data = generateTimeProps(modifyDate(date, -111, 'days').format('YYYY-MM-DD'),
-                                                modifyDate(date, -1, 'hours').startOf('hour'),
-                                                modifyDate(date, -11, 'days'))
+        const data = generateTimeProps(
+          modifyDate(date, -111, 'days').format('YYYY-MM-DD'),
+          modifyDate(date, -1, 'hours').startOf('hour'),
+          modifyDate(date, -11, 'days'),
+        )
 
         expect(createTimeObj(data)).toMatchObject({
           deleteDate: modifyDate(date, -102, 'days').format('YYYY-MM-DD'),
@@ -138,20 +145,20 @@ describe('Utility function tests', () => {
     describe('buildQueries', () => {
       describe('User array passed as argument', () => {
         test('Builds iterable url-encoded search queries of 500 chars or less', () => {
-        const names = Array.from(Array(20))
-                .map((x, i) => ({ screen_name: `TwitterMember${i}` }))
-        const queries = buildQueries(names)
-        expect(typeof queries[0]).toEqual('string')
-        expect(queries.every(query => query.length <= 500)).toBeTruthy()
-      })
+          const names = Array.from(Array(20))
+            .map((x, i) => ({ screen_name: `TwitterMember${i}` }))
+          const queries = buildQueries(names)
+          expect(typeof queries[0]).toEqual('string')
+          expect(queries.every(query => query.length <= 500)).toBeTruthy()
+        })
 
-      test('Does not join query with only one user', () => {
-        const names = Array.from(Array(20))
-                .map((x, i) => ({ screen_name: `TwitterMember${i}` })).slice(0, 1)
-        const queries = buildQueries(names)
-        expect(queries).toHaveLength(1)
-        expect(queries[0]).toEqual('from%3ATwitterMember0%20include%3Anativeretweets%20AND%20include%3Aretweets')
-      })
+        test('Does not join query with only one user', () => {
+          const names = Array.from(Array(20))
+            .map((x, i) => ({ screen_name: `TwitterMember${i}` })).slice(0, 1)
+          const queries = buildQueries(names)
+          expect(queries).toHaveLength(1)
+          expect(queries[0]).toEqual('from%3ATwitterMember0%20include%3Anativeretweets%20AND%20include%3Aretweets')
+        })
       })
 
       describe('List id passed as argument', () => {
@@ -171,7 +178,8 @@ describe('Utility function tests', () => {
           five: 'undefined',
           six: '"2016-03-02"',
         }
-        expect(unserializeObj(foo)).toEqual({ one: null,
+        expect(unserializeObj(foo)).toEqual({
+          one: null,
           two: { foo: true },
           three: null,
           four: null,
@@ -190,7 +198,9 @@ describe('Utility function tests', () => {
 
     describe('serializeObj', () => {
       test('Serializes object for store correctly', () => {
-        const obj = { foo: true, foo2: null, foo3: [1, 2, 4], foo4: 'whatever' }
+        const obj = {
+          foo: true, foo2: null, foo3: [1, 2, 4], foo4: 'whatever',
+        }
         expect(serializeObj(obj)).toEqual({
           foo: 'true',
           foo3: '[1,2,4]',
@@ -270,6 +280,22 @@ describe('Utility function tests', () => {
           user_index: 2,
           account_index: 0,
         })
+      })
+    })
+    describe('getActualUrl', () => {
+      const mockApi = new MockApi()
+      beforeAll(() => {
+        mockApi.init()
+      })
+
+      afterAll(() => MockApi.cleanMocks())
+
+      test('Returns real url from shortened url', async () => {
+        await expect(getActualUrl('http://www.testurl.com/sh0rt')).resolves.toEqual('http://www.testurl.com/actualpage')
+      })
+
+      test('Returns url passed as argument if url is normal', async () => {
+        await expect(getActualUrl('http://www.testurl.com/normal')).resolves.toEqual('http://www.testurl.com/normal')
       })
     })
   })

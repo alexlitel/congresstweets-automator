@@ -1,7 +1,7 @@
 import mapValues from 'lodash/mapValues'
 import isNil from 'lodash/isNil'
 import {
-    getTime,
+  getTime,
 } from '../../src/util'
 
 
@@ -28,6 +28,7 @@ export const testConfig = {
   GITHUB_TOKEN: '123456789',
   GITHUB_USER: 'test-user',
   SITE_REPO: 'test-repo',
+  INIT_DATE: '2017-06-21',
   SELF_REPO: 'test-self-repo',
   GITHUB_CONFIG: {
     owner: 'test-user',

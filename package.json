@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "babel-core": "^6.26.0",
-    "bluebird": "^3.5.0",
+    "bluebird": "^3.5.1",
     "dotenv": "^4.0.0",
     "ent": "^2.2.0",
     "flat": "^4.0.0",
@@ -33,7 +33,9 @@
     "pretty": "^2.0.0",
     "qs": "^6.5.0",
     "redis": "^2.7.1",
-    "request-promise": "^4.2.1",
+    "request": "^2.34",
+    "request-promise": "^4.2.2",
+    "string-replace-async": "^1.2.1",
     "twit": "^2.2.5",
     "word-wrap": "^1.2.3",
     "yargs-parser": "^7.0.0"
@@ -52,14 +54,14 @@
     "eslint-config-airbnb-base": "^12.0.0",
     "eslint-plugin-import": "^2.3.0",
     "husky": "^0.14.3",
-    "jest": "^21.1.0",
-    "nock": "^9.0.14",
+    "jest": "^21.3.0-beta.14",
+    "nock": "^9.1.4",
     "nodemon": "^1.11.0",
     "redis-mock": "^0.20.0",
     "rimraf": "^2.6.1"
   },
   "engines": {
-    "node": "8.x",
+    "node": "9.x",
     "yarn": "1.x"
   }
 }

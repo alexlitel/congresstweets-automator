@@ -4,13 +4,13 @@ import path from 'path'
 import bluebird from 'bluebird'
 import MockApi from './helpers/api-mock'
 import {
-    testConfig,
-    mockChanges,
+  testConfig,
+  mockChanges,
 } from './util/test-util'
 import GithubHelper from '../src/github'
 import {
-    configureMaintenance,
-    Maintenance,
+  configureMaintenance,
+  Maintenance,
 } from '../src/maintenance'
 import {
   nativeClone,
@@ -28,6 +28,7 @@ const data = {}
 jest.mock('fs', () => ({
   readFileSync: (filePath) => {
     if (!/(node_modules|test|mock)/gi.test(filePath)) {
+      /* eslint-disable */
       const nativeClone = require('../src/util').nativeClone
       const path = require('path')
       const dummyDataPath = path.join('./test/', '/data/users.json')
@@ -36,6 +37,7 @@ jest.mock('fs', () => ({
       const first = data.shift()
       data.push(first)
       return JSON.stringify(data)
+      /* eslint-enable */
     }
     return require.requireActual('fs').readFileSync(filePath)
   },
@@ -62,7 +64,7 @@ const resetMocks = () => {
 beforeAll(() => {
   resetMocks()
   loadData()
-  mockApi = new MockApi('both')
+  mockApi = new MockApi()
   mockApi.init()
   redisClient = redis.createClient()
 })
@@ -110,15 +112,21 @@ describe('Maintenance factory-type function instantiates correctly', () => {
     const err = 'Missing required props for Github client for self-updating maintenance'
     const opts = { selfUpdate: true }
     expect(() => configureMaintenance(redisClient, null, opts)).toThrow(err)
-    expect(() => configureMaintenance(redisClient,
-                                      _.omit(testConfig, ['GITHUB_CONFIG']),
-                                      opts)).toThrow(err)
-    expect(() => configureMaintenance(redisClient,
-                                      _.omit(testConfig, ['GITHUB_TOKEN']),
-                                      opts)).toThrow(err)
-    expect(() => configureMaintenance(redisClient,
-                                      _.omit(testConfig, ['SELF_REPO']),
-                                      opts)).toThrow(err)
+    expect(() => configureMaintenance(
+      redisClient,
+      _.omit(testConfig, ['GITHUB_CONFIG']),
+      opts,
+    )).toThrow(err)
+    expect(() => configureMaintenance(
+      redisClient,
+      _.omit(testConfig, ['GITHUB_TOKEN']),
+      opts,
+    )).toThrow(err)
+    expect(() => configureMaintenance(
+      redisClient,
+      _.omit(testConfig, ['SELF_REPO']),
+      opts,
+    )).toThrow(err)
   })
 })
 
@@ -165,9 +173,20 @@ describe('Maintenance class methods', () => {
       expect(initialized).toEqual(storePostInit)
       expect(initialized.users).toHaveLength(9)
       expect(initialized.accounts).toHaveLength(8)
+      expect(initialized.initDate).toEqual('2017-06-21')
       expect(initialized.users[0].name).toEqual('House Caucus')
       expect(initialized.accounts[0].name).toEqual('House Caucus')
       expect(true).toBe(true)
+    })
+
+    test('Successfully initializes store with current date when config INIT_DATE variable isn\'t set', async () => {
+      maintain.config.INIT_DATE = null
+      const fileData = { users: data.users, accounts: extractAccounts(data.users) }
+      const initialized = await maintain.initStore(fileData)
+      const storePostInit = unserializeObj(await redisClient.hgetallAsync('app'))
+      expect(initialized.initDate).not.toEqual('2017-06-21')
+      expect(initialized.initDate).toEqual(expect.stringMatching(/^\d{4}(-\d{2}){2}$/))
+      expect(storePostInit.initDate).not.toEqual('2017-06-21')
     })
   })
 
@@ -220,7 +239,7 @@ describe('Maintenance class methods', () => {
       expect(mockFns.sortAndFilter.mock.calls[0][0][0].type).toEqual('committee')
       expect(fs.writeFileSync.mock.calls[0][0]).toMatch('users')
       expect(fs.writeFileSync.mock.calls
-                                  .map(call => JSON.parse(call[1]).length)).toEqual([9, 5, 9, 5])
+        .map(call => JSON.parse(call[1]).length)).toEqual([9, 5, 9, 5])
       expect(JSON.parse(fs.writeFileSync.mock.calls[0][1])[0].type).toMatch('caucus')
       expect(fs.writeFileSync.mock.calls[1][0]).toMatch('users-filtered')
       expect(fs.writeFileSync.mock.calls[2][0]).toMatch('historical-users')
@@ -350,7 +369,8 @@ describe('Maintenance class methods', () => {
 
       describe('List changes', () => {
         test('Returns deleted account', async () => {
-          fileData.users.push({ name: 'House Caucus2',
+          fileData.users.push({
+            name: 'House Caucus2',
             chamber: 'house',
             type: 'caucus',
             party: 'D',
@@ -636,16 +656,17 @@ describe('Maintenance class methods', () => {
             const accounts = extractAccounts(users)
             Object.assign(fileData, { users, accounts })
             Object.assign(redisData, { users, accounts })
-            changes.list.renamed = [{ id: '2', screen_name: 'renamed', user_index: 2, account_index: 0 }]
+            changes.list.renamed = [{
+              id: '2', screen_name: 'renamed', user_index: 2, account_index: 0,
+            }]
             const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(4)
             expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(2)
             expect(Object.keys(parsedChanges.toWrite).every(key =>
               extractAccounts(parsedChanges.toWrite[key])
-                            .map(x => x.screen_name)
-                            .includes('renamed'),
-            )).toBeTruthy()
+                .map(x => x.screen_name)
+                .includes('renamed'))).toBeTruthy()
             expect(parsedChanges.toWrite['historical-users'][1].accounts[0]).toHaveProperty('prev_names', ['HouseTwitterComm'])
             expect(parsedChanges).toHaveProperty('toStore.changes')
           })
@@ -794,8 +815,7 @@ describe('Maintenance class methods', () => {
             expect(['users', 'historical-users'].every(key =>
               parsedChanges.toWrite[key]
                 .map(x => (x.id && x.id.bioguide) || null)
-                .includes('100000'),
-            )).toBeTruthy()
+                .includes('100000'))).toBeTruthy()
           })
 
           test('Adds new MOC to current dataset and updates record in historical dataset with new MOC props', async () => {
@@ -958,8 +978,10 @@ describe('Maintenance class methods', () => {
         await redisClient.hmsetAsync('app', serializeObj({ users }))
         await maintain.run()
         expect(maintain.checkForChanges.mock.calls[0][1]).toHaveProperty('users')
-        expect(maintain.checkForChanges.mock.calls[0][1].users[0]).toHaveProperty('accounts',
-          [{ account_type: 'office', id: 1, screen_name: 'HouseCaucus' }])
+        expect(maintain.checkForChanges.mock.calls[0][1].users[0]).toHaveProperty(
+          'accounts',
+          [{ account_type: 'office', id: 1, screen_name: 'HouseCaucus' }],
+        )
         expect(maintain.checkForChanges.mock.calls[0][1]).toHaveProperty('accounts')
         expect(maintain.checkForChanges.mock.calls[0][1]).toHaveProperty('deactivated', {})
       })
@@ -973,8 +995,10 @@ describe('Maintenance class methods', () => {
       describe('Without noCommit flag', () => {
         beforeEach(() => {
           mockApi.options.recursive = true
-          maintain.githubClient = new GithubHelper(testConfig.GITHUB_TOKEN,
-          { owner: testConfig.GITHUB_CONFIG.owner, repo: testConfig.SELF_REPO })
+          maintain.githubClient = new GithubHelper(
+            testConfig.GITHUB_TOKEN,
+            { owner: testConfig.GITHUB_CONFIG.owner, repo: testConfig.SELF_REPO },
+          )
           mockFns.createBlob = jest.spyOn(maintain.githubClient.client.gitdata, 'createBlob')
           mockFns.createCommit = jest.spyOn(maintain.githubClient.client.gitdata, 'createCommit')
           mockFns.createTree = jest.spyOn(maintain.githubClient.client.gitdata, 'createTree')
@@ -1027,16 +1051,16 @@ describe('Maintenance class methods', () => {
             return changes
           })
           maintain.parseChanges
-                  .mockImplementationOnce(() => {
-                    const parsedChanges = {}
-                    parsedChanges.toWrite = {}
-                    parsedChanges.toWrite.users = users
-                    parsedChanges.toWrite['users-filtered'] = users.filter(x => x.accounts.length)
-                    parsedChanges.toWrite['historical-users'] = users
-                    parsedChanges.toWrite['historical-users-filtered'] = users.filter(x => x.accounts.length)
-                    parsedChanges.toStore = { deactivated: { '1': '2017-02-02' } }
-                    return parsedChanges
-                  })
+            .mockImplementationOnce(() => {
+              const parsedChanges = {}
+              parsedChanges.toWrite = {}
+              parsedChanges.toWrite.users = users
+              parsedChanges.toWrite['users-filtered'] = users.filter(x => x.accounts.length)
+              parsedChanges.toWrite['historical-users'] = users
+              parsedChanges.toWrite['historical-users-filtered'] = users.filter(x => x.accounts.length)
+              parsedChanges.toStore = { deactivated: { '1': '2017-02-02' } }
+              return parsedChanges
+            })
           await maintain.run()
           expect(mockFns.githubRun).toBeCalled()
           expect(mockFns.githubRun.mock.calls[0][1]).toEqual({
@@ -1048,7 +1072,7 @@ describe('Maintenance class methods', () => {
           expect(mockFns.createCommit.mock.calls[0][0]).toHaveProperty('repo', 'test-self-repo')
           expect(mockFns.createCommit.mock.calls[0][0]).toHaveProperty('message', 'Add Senate No Twitter Member 2\n\nMembers added:\nSenate No Twitter Member 2')
           expect(mockFns.createTree.mock.calls[0][0].tree
-                .filter(file => file.path.includes('user'))).toHaveLength(4)
+            .filter(file => file.path.includes('user'))).toHaveLength(4)
           expect(mockFns.updateReference).toBeCalled()
           expect(mockFns.getTree).toBeCalled()
           expect(mockFns.getShaOfCommitRef).toBeCalled()
@@ -1076,25 +1100,25 @@ describe('Maintenance class methods', () => {
             accounts: [],
           })
           maintain.parseChanges
-                  .mockImplementationOnce(() => {
-                    const parsedChanges = {}
-                    parsedChanges.toWrite = {}
-                    parsedChanges.toWrite.users = users
-                    parsedChanges.toWrite['users-filtered'] = users.filter(x => x.accounts.length)
-                    return parsedChanges
-                  })
-                  .mockImplementationOnce(() => {
-                    const parsedChanges = {}
-                    parsedChanges.toStore = {}
-                    parsedChanges.toStore.users = users
-                    parsedChanges.toStore.accounts = extractAccounts(users)
-                    return parsedChanges
-                  })
+            .mockImplementationOnce(() => {
+              const parsedChanges = {}
+              parsedChanges.toWrite = {}
+              parsedChanges.toWrite.users = users
+              parsedChanges.toWrite['users-filtered'] = users.filter(x => x.accounts.length)
+              return parsedChanges
+            })
+            .mockImplementationOnce(() => {
+              const parsedChanges = {}
+              parsedChanges.toStore = {}
+              parsedChanges.toStore.users = users
+              parsedChanges.toStore.accounts = extractAccounts(users)
+              return parsedChanges
+            })
           await maintain.run()
           expect(fs.writeFileSync).toHaveBeenCalledTimes(2)
           expect(fs.writeFileSync.mock.calls
-                  .every(x => x[0].endsWith('users.json') || x[0].endsWith('users-filtered.json')))
-                  .toBeTruthy()
+            .every(x => x[0].endsWith('users.json') || x[0].endsWith('users-filtered.json')))
+            .toBeTruthy()
           expect(mockFns.maintainRun).toHaveBeenCalledTimes(2)
           expect(maintain.checkForChanges).toHaveBeenCalledTimes(2)
           expect(maintain.checkForChanges.mock.calls[0]).toHaveLength(2)

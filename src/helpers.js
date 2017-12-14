@@ -6,7 +6,6 @@ import {
   trimLeadingSpace,
 } from './util'
 
-// eslint-disable-next-line import/prefer-default-export
 export class BuildMd {
   static generateMeta(date) {
     return trimLeadingSpace(`---
@@ -22,6 +21,16 @@ export class BuildMd {
 export class ChangeMessage {
   static flattenChanges(changes, { isCommit }) {
     const flatChanges = _.chain(flat(changes, { maxDepth: 2 }))
+      .thru((obj) => {
+        if (isCommit) {
+          if (['members.remove', 'list.deleted']
+            .every(key => obj[key] && obj[key].length)) {
+            const removeIds = obj['members.remove'].map(x => x.id.bioguide)
+            obj['list.deleted'] = obj['list.deleted'].filter(x => !removeIds.includes(x.bioguide))
+          }
+        }
+        return obj
+      })
       .pickBy((v, k) => {
         const isValidArr = typeof v === 'object' && v.length
         if (isCommit) return isValidArr && !k.includes('tivate')
@@ -44,7 +53,6 @@ export class ChangeMessage {
         key.includes('reactivate'),
       ], ['desc'])
       .value()
-
     flatChanges.count = _.values(flatChanges).reduce((p, c) => p + c[1].length, 0)
     return flatChanges
   }
@@ -163,4 +171,3 @@ export class ChangeMessage {
     return `${summary}${changeString}`
   }
 }
-

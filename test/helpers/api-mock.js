@@ -333,32 +333,35 @@ class MockApi {
   init() {
     this.constructor.cleanMocks()
 
-    if (this.type === 'twitter' || this.type === 'both') {
-      nock(/twitter\.com/)
-        .persist()
-        .get(/.*/)
-        .reply(this.handleApiReply('twitter', 'GET'))
-        .post(/.*/)
-        .reply(this.handleApiReply('twitter', 'POST'))
-    }
+    nock(/twitter\.com/)
+      .persist()
+      .get(/.*/)
+      .reply(this.handleApiReply('twitter', 'GET'))
+      .post(/.*/)
+      .reply(this.handleApiReply('twitter', 'POST'))
 
-    if (this.type === 'github' || this.type === 'both') {
-      nock(/github\.com/)
-        .persist()
-        .get(/.*/)
-        .reply(this.handleApiReply('github', 'GET'))
-        .post(/.*/)
-        .reply(this.handleApiReply('github', 'POST'))
-        .patch(/.*/)
-        .reply(this.handleApiReply('github', 'POST'))
-    }
+    nock(/github\.com/)
+      .persist()
+      .get(/.*/)
+      .reply(this.handleApiReply('github', 'GET'))
+      .post(/.*/)
+      .reply(this.handleApiReply('github', 'POST'))
+      .patch(/.*/)
+      .reply(this.handleApiReply('github', 'POST'))
 
-    if (this.type === 'both') {
-      nock(/githubusercontent\.com/)
-        .persist()
-        .get(/.*/)
-        .reply(this.handleApiReply('githubContent', 'GET'))
-    }
+    nock(/githubusercontent\.com/)
+      .persist()
+      .get(/.*/)
+      .reply(this.handleApiReply('githubContent', 'GET'))
+
+    nock(/testurl\.com/)
+      .persist()
+      .head('/sh0rt')
+      .reply(302, '', {
+        Location: 'http://www.testurl.com/actualpage',
+      })
+      .head('/normal')
+      .reply(200)
   }
 
   constructor(type, options = {}) {

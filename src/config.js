@@ -6,6 +6,7 @@ export const TWITTER_CONFIG = {
   consumer_secret: process.env.TWITTER_API_SECRET,
 }
 
+export const INIT_DATE = process.env.INIT_DATE || null
 export const TIME_ZONE = process.env.TZ || 'America/New_York'
 export const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
 export const LIST_ID = process.env.LIST_ID
@@ -22,6 +23,7 @@ export const GITHUB_CONFIG = {
 export const APP_CONFIG = {
   SELF_REPO,
   TWITTER_CONFIG,
+  INIT_DATE,
   GITHUB_CONFIG,
   LIST_ID,
   GITHUB_TOKEN,

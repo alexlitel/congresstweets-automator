@@ -1,9 +1,11 @@
 import Twit from 'twit'
 import bluebird from 'bluebird'
+import asyncReplace from 'string-replace-async'
 import _ from 'lodash'
 import {
   buildQueries,
   checkDateValidity,
+  getActualUrl,
   getTime,
   trimLeadingSpace,
 } from './util'
@@ -21,9 +23,9 @@ export class Tweet {
     return `https://www.twitter.com/${screenName}/statuses/${tweetId}`
   }
 
-  static replaceUrls(data) {
-    return data.full_text.replace(/(\bhttps\:\/\/t\.co\/\w+\b)/gi, (match) => {
-      const nonMediaUrl = data.entities.urls.find(item => item.url === match)
+  static async replaceUrls(data) {
+    return asyncReplace(data.full_text, /(\bhttps\:\/\/t\.co\/\w+\b)/gi, async (match) => {
+      const nonMediaUrl = (data.entities.urls.find(item => item.url === match) || {}).expanded_url
       if (!nonMediaUrl) {
         if (!_.has(data, 'extended_entities.media')) return match
 
@@ -31,34 +33,42 @@ export class Tweet {
         if (!mediaUrls.length) return match
         return mediaUrls.map((item) => {
           if (item.type === 'photo') return item.media_url
-          return `${item.media_url} ${_.minBy(item.video_info.variants, ['bitrate']).url}`
+          return `${item.media_url} ${_.minBy(item.video_info.variants, 'bitrate').url}`
         }).join(' ')
+      } else if (!nonMediaUrl.includes('facebook.com/') && /\.\w{1,4}\/\w+$/.test(nonMediaUrl)) {
+        return getActualUrl(nonMediaUrl)
       }
-      return nonMediaUrl.expanded_url
+      return nonMediaUrl
     })
   }
 
-  static parseText(data, isRetweet, isQuote) {
+  static async parseText(data, isRetweet, isQuote) {
     if (isRetweet) {
       if (isQuote) {
         return trimLeadingSpace(`RT @${data.retweeted_status.user.screen_name}
-                        ${this.replaceUrls(data.retweeted_status)}
+                        ${await this.replaceUrls(data.retweeted_status)}
                         QT @${data.retweeted_status.quoted_status.user.screen_name}
-                        ${this.replaceUrls(data.retweeted_status.quoted_status)}`, true)
-      } return `RT @${data.retweeted_status.user.screen_name} ${this.replaceUrls(data.retweeted_status)}`
-    } else if (isQuote) return `${this.replaceUrls(data)} QT @${data.quoted_status.user.screen_name} ${this.replaceUrls(data.quoted_status)}`
+                        ${await this.replaceUrls(data.retweeted_status.quoted_status)}`, true)
+      } return `RT @${data.retweeted_status.user.screen_name} ${await this.replaceUrls(data.retweeted_status)}`
+    } else if (isQuote) return `${await this.replaceUrls(data)} QT @${data.quoted_status.user.screen_name} ${await this.replaceUrls(data.quoted_status)}`
     return this.replaceUrls(data)
   }
 
-  constructor(data) {
+  static async create(data) {
     const isRetweet = !!data.retweeted_status
     const isQuote = !!data.quoted_status || _.has(data, 'retweeted_status.quoted_status')
+    data.parsed_text = await this.parseText(data, isRetweet, isQuote)
+    data.link = this.getLink(data, isRetweet)
+    return Promise.resolve(new Tweet(data))
+  }
+
+  constructor(data) {
     this.id = data.id_str
     this.screen_name = data.user.screen_name
     this.user_id = data.user.id_str
     this.time = getTime(new Date(data.created_at), true)
-    this.link = this.constructor.getLink(data, isRetweet)
-    this.text = this.constructor.parseText(data, isRetweet, isQuote)
+    this.link = data.link
+    this.text = data.parsed_text
     this.source = data.source.split('"nofollow"\>')[1].slice(0, -4)
   }
 }
@@ -154,7 +164,7 @@ export class TwitterHelper {
         list_id: this.listId,
       }
 
-      return (await this.makeRequest('get', 'lists/show', props))
+      return await this.makeRequest('get', 'lists/show', props)
     } catch (e) {
       return Promise.reject(e)
     }
@@ -180,7 +190,6 @@ export class TwitterHelper {
       if (!userId) throw new Error('User id is missing')
       // eslint-disable-next-line no-restricted-globals
       if (isNaN(+userId) && !screenName) screenName = true
-
       const props = {
         [screenName ? 'screen_name' : 'user_id']: userId,
       }
@@ -234,7 +243,7 @@ export class TwitterHelper {
         if (tweets.length) lastTweet = tweets[tweets.length - 1]
         if (!tweets.length || lastTweet.id_str === maxId) isValid = false
         else {
-          const mapped = await tweets.map(x => new Tweet(x))
+          const mapped = await bluebird.map(tweets, x => Tweet.create(x))
           collected = collected.concat(mapped)
           if (metadata.next_results && tweets.length === 100) {
             if (!sinceId && !checkDateValidity(lastTweet.created_at, time.todayDate)) {
@@ -301,8 +310,8 @@ export class TwitterHelper {
               return p
             }, tweetsCollection)
           } else {
-            const mappedAndValid = await tweets
-              .filter(x => x.time.includes(time.todayDate))
+            const mappedAndValid = await bluebird
+              .filter(tweets, x => x.time.includes(time.todayDate))
             tweetsCollection = tweetsCollection.concat(mappedAndValid)
           }
         }

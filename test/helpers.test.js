@@ -79,17 +79,18 @@ describe('ChangeMessage (maintenance change message generator helper class)', ()
         expect(flattened.map(x => x[0])).toEqual(['accounts add', 'accounts remove'])
         expect(flattened2).toHaveLength(8)
         expect(flattened2.map(x => x[0]))
-            .toEqual(['members add',
-              'members remove',
-              'members update',
-              'accounts add',
-              'accounts delete',
-              'accounts rename',
-              'accounts reactivate',
-              'accounts deactivate'])
+          .toEqual(['members add',
+            'members remove',
+            'members update',
+            'accounts add',
+            'accounts delete',
+            'accounts rename',
+            'accounts reactivate',
+            'accounts deactivate'])
       })
 
-      test('Omits keys for commit', () => {
+      test('Omits keys and deleted accounts from removed members for commit', () => {
+        let count = 0
         const changes = _.mapValues(mockChanges(false, true), (v) => {
           if (typeof v === 'object') {
             return _.mapValues(v, () => [1])
@@ -97,10 +98,20 @@ describe('ChangeMessage (maintenance change message generator helper class)', ()
           return v
         })
 
+        changes.members.remove = [
+          { id: { bioguide: '123' }, name: 'foo1' }, 
+          { id: { bioguide: '1' }, name: 'foo' },
+        ]
+        changes.list.deleted = [
+          { id: '1', bioguide: '1', name: 'foo' },
+          { id: '3', bioguide: '3', name: 'foo1' },
+          { id: '2', bioguide: '2', name: 'foo2' },
+        ]
         const flattened = ChangeMessage.flattenChanges(changes, { isCommit: true })
         expect(flattened).toHaveLength(6)
         expect(flattened.map(x => x[0])).not.toContain('accounts reactivate')
         expect(flattened.map(x => x[0])).not.toContain('accounts deactivate')
+        expect(flattened.find(x => x[0] === 'accounts delete')[1]).toHaveLength(2)
       })
 
       test('Tabulates flattened changes', () => {
@@ -118,23 +129,25 @@ describe('ChangeMessage (maintenance change message generator helper class)', ()
     describe('stringifyChangeList', () => {
       test('Stringifies list post-build', () => {
         const changes = [
-                          ['accounts add', [{ screen_name: 'Twitter' }]],
+          ['accounts add', [{ screen_name: 'Twitter' }]],
           ['accounts remove',
             [
-                              { screen_name: 'Removed Twitter' },
-                              { screen_name: 'Removed Twitter' }]],
+              { screen_name: 'Removed Twitter' },
+              { screen_name: 'Removed Twitter' }]],
         ]
         const changeString = '\n\n1 account added\nTwitter\n\n2 accounts removed\nRemoved Twitter\nRemoved Twitter'
         expect(ChangeMessage
-                    .stringifyChangeList(changes,
-                      { postBuild: true })).toEqual(changeString)
+          .stringifyChangeList(
+            changes,
+            { postBuild: true },
+          )).toEqual(changeString)
       })
 
       test('Stringifies list not in post-build', () => {
         const changes = [
-                  ['members add', [{ name: 'Person 2' }, { name: 'Person 1' }, { name: 'Person 3' }]],
-                  ['accounts add', [{ name: 'Person', screen_name: 'TwitterPerson', account_type: 'office' }]],
-                  ['accounts deactivated', [{ name: 'Person 9', screen_name: 'InactiveTwitterPerson', account_type: 'office' }]],
+          ['members add', [{ name: 'Person 2' }, { name: 'Person 1' }, { name: 'Person 3' }]],
+          ['accounts add', [{ name: 'Person', screen_name: 'TwitterPerson', account_type: 'office' }]],
+          ['accounts deactivated', [{ name: 'Person 9', screen_name: 'InactiveTwitterPerson', account_type: 'office' }]],
         ]
         const changeString = ['Members added:\nPerson 2, Person 1, Person 3', 'Accounts added:\nTwitterPerson (Person office)',
           'Accounts deactivated:\nInactiveTwitterPerson (Person 9 office)'].join('\n\n')
@@ -153,9 +166,9 @@ describe('ChangeMessage (maintenance change message generator helper class)', ()
       })
       test('Converts change list sans updated records to orderly short-ish commit message', () => {
         const changes = [
-              ['members add', [{ name: 'Person' }]],
-              ['members remove', [{ name: 'Person' }]],
-              ['accounts add', [{ name: 'Person', account_type: 'office', screen_name: 'Twitter' }]],
+          ['members add', [{ name: 'Person' }]],
+          ['members remove', [{ name: 'Person' }]],
+          ['accounts add', [{ name: 'Person', account_type: 'office', screen_name: 'Twitter' }]],
         ]
         expect(ChangeMessage.createCommitMessage(changes)).toEqual('Add Person, remove Person, & add Person office account')
       })
@@ -239,6 +252,8 @@ describe('ChangeMessage (maintenance change message generator helper class)', ()
         test('Prints serialized change list for commit', () => {
           const changes = Object.assign(mockChanges(false, true), { count: 6 })
           const mockAccount = [{
+            id: '123',
+            bioguide: '1',
             name: 'member 1',
             chamber: 'senate',
             screen_name: 'member1',
@@ -246,22 +261,26 @@ describe('ChangeMessage (maintenance change message generator helper class)', ()
           }]
 
           const mockMember = [{
+            id: { bioguide: '1' },
             name: 'member 1',
             chamber: 'senate',
           }]
           changes.list.renamed = nativeClone(mockAccount)
           changes.list.deleted = nativeClone(mockAccount)
-          changes.social.add = nativeClone(mockAccount)
+          changes.list.deleted.push(Object.assign({}, mockAccount[0], { bioguide: '222', name: 'member 5' }))
+          changes.social.add = []
+          changes.social.add.push(Object.assign({}, mockAccount[0], { bioguide: '333', name: 'member 7' }))
           changes.members.remove = nativeClone(mockMember)
-          changes.members.add = nativeClone(mockMember)
+          changes.members.add = []
+          changes.members.add.push(Object.assign({}, mockAccount[0], { bioguide: '444', name: 'member 2' }))
           changes.members.update = nativeClone(mockMember)
 
           const changeMsg = ChangeMessage.create(changes, { isCommit: true })
-          expect(changeMsg.startsWith('Add member 1, remove member 1, add member 1 office account, delete member 1 office account, & update records')).toBeTruthy()
+          expect(changeMsg.startsWith('Add member 2, remove member 1, add member 7 office account, delete member 5 office account, & update records')).toBeTruthy()
+          expect(changeMsg.includes('member 1 office account')).toBeFalsy()
           expect(changeMsg.split('\n')).toHaveLength(19)
           expect(keyStrings.slice(2).every(keyString =>
-        changeMsg.includes(`\n${keyString}:\nmember 1`) || changeMsg.includes(`\n${keyString}:\nmember1`),
-        )).toBeTruthy()
+            changeMsg.includes(`\n${keyString}:\nmember`) || changeMsg.includes(`\n${keyString}:\nmember`))).toBeTruthy()
         })
 
         test('Prints serialized change list for console', () => {
@@ -288,8 +307,7 @@ describe('ChangeMessage (maintenance change message generator helper class)', ()
 
           const changeMsg = ChangeMessage.create(changes, { })
           expect(keyStrings.slice(2).every(keyString =>
-        changeMsg.includes(`\n${keyString}:\nmember 1`) || changeMsg.includes(`\n${keyString}:\nmember1`),
-        )).toBeTruthy()
+            changeMsg.includes(`\n${keyString}:\nmember 1`) || changeMsg.includes(`\n${keyString}:\nmember1`))).toBeTruthy()
         })
       })
 

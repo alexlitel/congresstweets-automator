@@ -9,7 +9,7 @@ Licensed under [MIT](http://www.opensource.org/licenses/mit-license.php)
 ## How it works
 This project is designed to run on a service like Heroku, interfacing with the Twitter API at a set interval to make sure tweets are captured. The app culls data from a Twitter list following all the relevant congressional accounts, the most anonymous way of following a Twitter account. If you follow this strategy (designed to minimizing chances of blocking), I recommend using an undetectable private Twitter list in combination with either a private Twitter account or a burner account you never use. To collect tweets, the app iterates through Twitter search queries.
 
-To track tweets and a few other data points, the app uses a small Redis store that contains some stringified data that gets parsed when the app runs. To reduce unwieldiness, the app transforms the received Twitter tweet data into much smaller objects with a few properties like text, screen name, date, and id. It includes both retweets and full text of quoted tweets. At the end of the day (EST), the app empties out the previous day's tweet day into JSON dumps of tweets (generated using data from `data/users.json`, stored on the Redis store).
+To track tweets and a few other data points, the app uses a small Redis store that contains some stringified data that gets parsed when the app runs. To reduce unwieldiness, the app transforms the received Twitter tweet data into much smaller objects with a few properties like text, screen name, date, and id. Short and media URLs are unfurled in the text. The app also collects both retweets and full text of quoted tweets. At the end of the day (EST), the app empties out the previous day's tweet day into JSON dumps of tweets (generated using data from `data/users.json`, stored on the Redis store).
 
 The app uses the Github API to commit JSON data (and a small MD file/Jekyll post for some frontend/RSS stuff) to the frontend repo. I have set up and recommend a secondary account so you do not have 30 extra commits at the end of the month on your page.
 
@@ -97,10 +97,16 @@ You'll need the following environmental variables set in a `.env` file in the di
 * GITHUB_USER
 * SITE_REPO
 
-**Optional variables**: There's a `TZ` variable for helping the `moment-timezone` module operate, but that defaults to `America/New_York` in its absence and isn't needed. For the self-updating maintenance process, there's a `SELF_REPO` variable for the quasi-recursive updates. Make sure you have Github repos set up for deployment, otherwise those parts of the app may fail. Deploying the app will automatically run unit tests and linters.
+##### Optional variables
+
+* **`TZ`**: helps the `moment-timezone` module operate, but that defaults to `America/New_York` in its absence and isn't needed.
+* **`SELF_REPO`**: For the self-updating maintenance process, allows for the quasi-recursive updates. 
+* **`INIT_DATE`**: The initialization date for the app, must be in the format of `YYYY-MM-DD`. Otherwise, defaults to the current date. Used for store initialization and limiting number of current files in front-end repo.
+ 
+Make sure you have Github repos set up for deployment, otherwise those parts of the app may fail. Deploying the app will automatically run unit tests and linters.
 
 ## Testing
-To test the app, simply run `yarn test` to lint and run Jest tests and other fun stuff. As of V1, there's a mock API to handle the requests to Github content, Github's API and Twitter's API, and added a variety of utilities
+To test the app, simply run `yarn test` to lint and run Jest tests and other fun stuff. As of V1, there's a mock API to handle the requests to Github content, Github's API and Twitter's API, and a variety of utilitie.
 
 ## Issues, etc.
 If you come across any issues, don't hesitate to file any issue in this repo, make a pull request or [send an email](mailto:alexlitelATgmailDOTcom).
