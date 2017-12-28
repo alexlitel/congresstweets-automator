@@ -265,7 +265,7 @@ export class Maintenance {
           const accountsChanged = ['deleted', 'deactivated', 'reactivated'].some(x =>
             changes.list[x].length)
           const serializableChanges = this.options.hasBot ?
-            _.omitBy(changes.list, (v, k) => k === 'deleted' || v.length)
+            _.omitBy(changes.list, (v, k) => k === 'deleted' || !v.length)
             : null
 
           if (accountsChanged) {

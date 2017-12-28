@@ -607,7 +607,7 @@ describe('Maintenance class methods', () => {
             const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
             expect(parsedChanges).toHaveProperty('toStore.deactivated', { '123': '2017-02-02' })
             expect(mockFns.sortAndFilter).not.toBeCalled()
-            expect(parsedChanges).toHaveProperty('toStore.changes')
+            expect(parsedChanges).toHaveProperty('toStore.changes.deactivated')
           })
         })
 
@@ -624,7 +624,7 @@ describe('Maintenance class methods', () => {
             const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
             expect(parsedChanges).toHaveProperty('toStore.deactivated', {})
             expect(mockFns.sortAndFilter).not.toBeCalled()
-            expect(parsedChanges).toHaveProperty('toStore.changes')
+            expect(parsedChanges).toHaveProperty('toStore.changes.reactivated')
           })
         })
 
