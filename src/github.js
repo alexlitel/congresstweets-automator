@@ -187,7 +187,6 @@ export default class GithubHelper {
       headers: {
         'user-agent': 'TweetsOfCongressApp',
       },
-      followRedirects: false,
       timeout: 5000,
       promise: bluebird,
     })
