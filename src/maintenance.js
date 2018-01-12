@@ -231,10 +231,9 @@ export class Maintenance {
         }
 
         if (changes.count) {
-          changes.list = _.mapValues(changes.list, v => v.map(x => x.id))
-          if (changes.list.remove.length) await this.twitterClient.updateList('destroy', changes.list.remove)
+          if (changes.list.remove.length) await this.twitterClient.updateList('destroy', changes.list.remove.map(x => x.id))
           if (changes.list.add.length) {
-            await this.twitterClient.updateList('create', changes.list.add)
+            await this.twitterClient.updateList('create', changes.list.add.map(x => x.id))
             if (redisData.isActive && redisData.tweets.length) {
               redisData.accounts = changes.list.add
               const twitterData = await this.twitterClient.run(redisData, { maintenance: true })
