@@ -531,6 +531,15 @@ describe('Maintenance class methods', () => {
       })
 
       describe('New users', () => {
+        beforeEach(() => {
+        mockApi.options.run = true 
+        mockApi.options.maintenance = true
+        })
+
+        afterAll(() => {
+          mockApi.options.run = null 
+          mockApi.options.maintenance = null
+        })
         test('Returns updated data and calls Twitter API to add users to list', async () => {
           changes.storeUpdate = true
           changes.list.add = extractAccounts(users.slice(-4))
@@ -546,6 +555,7 @@ describe('Maintenance class methods', () => {
           expect(parsedChanges).toHaveProperty('toStore.accounts')
           expect(parsedChanges).toHaveProperty('toStore.tweets')
           expect(parsedChanges.toStore.tweets.length).toBeGreaterThan(1)
+          expect(parsedChanges.toStore.tweets).not.toContain('[')
           expect(mockFns.updateList).toBeCalled()
           expect(mockFns.run).toBeCalled()
           expect(mockFns.searchStatuses).toBeCalled()

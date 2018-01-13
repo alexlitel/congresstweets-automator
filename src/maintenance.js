@@ -237,7 +237,7 @@ export class Maintenance {
             if (redisData.isActive && redisData.tweets.length) {
               redisData.accounts = changes.list.add
               const twitterData = await this.twitterClient.run(redisData, { maintenance: true })
-              toStore.tweets = JSON.stringify(redisData.tweets.concat(twitterData.tweets))
+              toStore.tweets = redisData.tweets.concat(twitterData.tweets)
             }
           }
         }
