@@ -186,7 +186,8 @@ export class Maintenance {
         }, [])
 
         changes.social = {}
-        changes.social.add = outsideData.social.filter(x => !ids.mocExtracted.includes(x.id))
+        changes.social.add = outsideData.social.filter(x => x.id
+          && !ids.mocExtracted.includes(x.id))
       }
       changes.count = Object.keys(changes)
         .filter(x => typeof changes[x] === 'object')
