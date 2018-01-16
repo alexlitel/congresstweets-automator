@@ -532,12 +532,12 @@ describe('Maintenance class methods', () => {
 
       describe('New users', () => {
         beforeEach(() => {
-        mockApi.options.run = true 
-        mockApi.options.maintenance = true
+          mockApi.options.run = true
+          mockApi.options.maintenance = true
         })
 
         afterAll(() => {
-          mockApi.options.run = null 
+          mockApi.options.run = null
           mockApi.options.maintenance = null
         })
         test('Returns updated data and calls Twitter API to add users to list', async () => {

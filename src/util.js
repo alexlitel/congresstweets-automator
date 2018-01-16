@@ -111,6 +111,7 @@ export const trimLeadingSpace = (str, flatten = false) =>
 export const extractAccounts = userData =>
   flatMapDeep(userData, ({
     accounts, name, type: userType, id: userId, chamber,
+    party, state,
   }, userIndex) =>
     accounts.map((account, accountIndex) =>
       Object.assign(
@@ -121,7 +122,8 @@ export const extractAccounts = userData =>
           user_index: userIndex,
           account_index: accountIndex,
         },
-        userType === 'member' ? { bioguide: userId.bioguide } : {},
+        userType === 'member' ? { bioguide: userId.bioguide, state } : {},
+        party ? { party } : {},
       )))
 
 export const parsedFlags = pick(yargsParser(process.argv.slice(2), {

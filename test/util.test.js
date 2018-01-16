@@ -256,6 +256,8 @@ describe('Utility function tests', () => {
           user_index: 0,
           account_index: 0,
           bioguide: '123',
+          state: 'CA',
+          party: 'R',
         })
 
         expect(extractedAccounts[1]).toEqual({
@@ -268,6 +270,8 @@ describe('Utility function tests', () => {
           user_index: 0,
           account_index: 1,
           bioguide: '123',
+          state: 'CA',
+          party: 'R'
         })
 
         expect(extractedAccounts[2]).toEqual({
@@ -279,6 +283,7 @@ describe('Utility function tests', () => {
           name: 'House Caucus',
           user_index: 2,
           account_index: 0,
+          party: 'R',
         })
       })
     })
