@@ -3,18 +3,19 @@ import flat from 'flat'
 import wrap from 'word-wrap'
 import {
   getTime,
-  trimLeadingSpace,
 } from './util'
 
 export class BuildMd {
   static generateMeta(date) {
-    return trimLeadingSpace(`---
-            layout:     post
-            title:      Tweets
-            date:       ${getTime(date, 'YYYY-MM-DD')}
-            summary:    These are the tweets for ${getTime(date, 'MMMM D, YYYY')}.
-            categories:
-            ---\n\n`)
+    return [
+      '---',
+      'layout: post',
+      'title: Tweets',
+      `date: ${getTime(date, 'YYYY-MM-DD')}`,
+      `summary: These are the tweets for ${getTime(date, 'MMMM D, YYYY')}.`,
+      'categories:',
+      '---\n\n',
+    ].join('\n')
   }
 }
 

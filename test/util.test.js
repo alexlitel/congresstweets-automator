@@ -9,7 +9,6 @@ import {
   getActualUrl,
   getFullPartyName,
   prettyPrint,
-  trimLeadingSpace,
   unserializeObj,
 } from '../src/util'
 import {
@@ -320,27 +319,6 @@ describe('Utility function tests', () => {
         expect(getFullPartyName('r')).toBe('Republicans')
         expect(getFullPartyName('bi')).toBe('Bipartisan')
         expect(getFullPartyName('i')).toBe('Independent')
-      })
-    })
-
-    describe('trimLeadingSpace', () => {
-      test('Trim whitespace from multiline template literals formatted nicely in code', () => {
-        const str = `lineone
-                            linetwo
-                            linethree`
-
-        const trimmedStr = trimLeadingSpace(str)
-        expect(trimmedStr.split('\n').every(line => !/^(?![\n])\s+/gmi.test(line))).toEqual(true)
-        expect(trimmedStr.split('\n')).toHaveLength(3)
-      })
-
-      test('Trims whitespace from multiline template literals and flattens when flatten arg is true', () => {
-        const str = `lineone
-                            linetwo
-                            linethree`
-
-        const trimmedStr = trimLeadingSpace(str, true)
-        expect(trimmedStr.split('\n')).toHaveLength(1)
       })
     })
   })

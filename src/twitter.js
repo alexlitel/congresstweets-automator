@@ -7,7 +7,6 @@ import {
   checkDateValidity,
   getActualUrl,
   getTime,
-  trimLeadingSpace,
 } from './util'
 
 /* eslint-disable max-len */
@@ -45,10 +44,10 @@ export class Tweet {
   static async parseText(data, isRetweet, isQuote) {
     if (isRetweet) {
       if (isQuote) {
-        return trimLeadingSpace(`RT @${data.retweeted_status.user.screen_name}
-                        ${await this.replaceUrls(data.retweeted_status)}
-                        QT @${data.retweeted_status.quoted_status.user.screen_name}
-                        ${await this.replaceUrls(data.retweeted_status.quoted_status)}`, true)
+        return `RT @${data.retweeted_status.user.screen_name} ` +
+                `${await this.replaceUrls(data.retweeted_status)} ` +
+                `QT @${data.retweeted_status.quoted_status.user.screen_name} ` +
+                `${await this.replaceUrls(data.retweeted_status.quoted_status)}`
       } return `RT @${data.retweeted_status.user.screen_name} ${await this.replaceUrls(data.retweeted_status)}`
     } else if (isQuote) return `${await this.replaceUrls(data)} QT @${data.quoted_status.user.screen_name} ${await this.replaceUrls(data.quoted_status)}`
     return this.replaceUrls(data)

@@ -476,6 +476,22 @@ export class Maintenance {
     return true
   }
 
+  async updateFiles() {
+    return this.foo
+    /*
+    things to do
+    inquirer JS(?)
+    1. command program starts
+    2. loads data from files
+    3. autocomplete stuff
+    3. connects to twitter api
+    4. allows to connect to user search end point of api
+      5. enable multi choice selections
+    5. adds data from  selected accounts to etc
+
+    */
+  }
+
   async run() {
     try {
       if (this.options.formatOnly) return await this.formatFiles()

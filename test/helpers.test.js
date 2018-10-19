@@ -3,7 +3,6 @@ import _ from 'lodash'
 import path from 'path'
 import {
   getTime,
-  trimLeadingSpace,
   nativeClone,
 } from '../src/util'
 import {
@@ -31,13 +30,13 @@ beforeAll(() => {
 describe('BuildMd markdown generation class methods', () => {
   describe('generateMeta', () => {
     test('Generates metadata for markdown post', () => {
-      const mockMeta = trimLeadingSpace(`---
-            layout:     post
-            title:      Tweets
-            date:       2017-01-01
-            summary:    These are the tweets for January 1, 2017.
-            categories:
-            ---\n\n`)
+      const mockMeta = '---\n' +
+            'layout: post\n' +
+            'title: Tweets\n' +
+            'date: 2017-01-01\n' +
+            'summary: These are the tweets for January 1, 2017.\n' +
+            'categories:\n' +
+            '---\n\n'
       expect(BuildMd.generateMeta(data.yesterdayDate)).toEqual(mockMeta)
     })
   })

@@ -105,9 +105,6 @@ export const buildQueries = (data) => {
 
 export const unserializeObj = obj => mapValues(obj, v => v !== undefined && v !== 'undefined' ? JSON.parse(v) : null)
 
-export const trimLeadingSpace = (str, flatten = false) =>
-  flatten ? str.replace(/\n\s+/gmi, ' ') : str.replace(/^(?![\n])\s+/gmi, '')
-
 export const extractAccounts = userData =>
   flatMapDeep(userData, ({
     accounts, name, type: userType, id: userId, chamber,
