@@ -59,10 +59,7 @@ export class ChangeMessage {
   }
 
   static wrapChangeData(changeData, keyToString) {
-    return wrap(
-      `${keyToString}${changeData.join(', ')}`,
-      { width: 72, trim: true, indent: '' },
-    )
+    return wrap(`${keyToString}${changeData.join(', ')}`, { width: 72, trim: true, indent: '' })
   }
 
   static changeKeyTense(key) {
@@ -78,19 +75,18 @@ export class ChangeMessage {
       .sort(a => !/(add|delete|remove)/.test(a[0]))
       .reduce((p, [key, val], i, a) => {
         const isAddDelete = /(add|delete|remove)/.test(key)
-        let keyString = isAddDelete
-          ? `${key.split(' ').pop()} `
-          : 'update records'
-        if (i === 0) keyString = _.capitalize(keyString)
+        const keyString = isAddDelete ?
+          `${key.split(' ').pop()} ` :
+          'update records'
+        // if (i === 0) keyString = _.capitalize(keyString)
         let mappedString
         if (isAddDelete) {
           const socOrList = key.includes('accounts')
-          let changeData = val.map((x, j, a2) =>
-            [
-              j > 0 && j === a2.length - 1 ? '& ' : '',
-              x.name || x,
-              socOrList ? ` ${x.account_type}` : '',
-            ].join('')).join(val.length > 2 ? ', ' : ' ')
+          let changeData = val.map((x, j, a2) => [
+            j > 0 && j === a2.length - 1 ? '& ' : '',
+            x.name || x,
+            socOrList ? ` ${x.account_type}` : '',
+          ].join('')).join(val.length > 2 ? ', ' : ' ')
           if (socOrList) {
             changeData = `${changeData} account${val.length > 1 ? 's' : ''}`
           }
@@ -99,13 +95,21 @@ export class ChangeMessage {
           mappedString = keyString
         }
         if (mappedString) {
-          if (i === a.length - 1 && i > 0) p.push(`& ${mappedString}`)
-          else p.push(mappedString)
-        } else if (i === a.length - 1 && i > 0) {
-          if (p[p.length - 1].includes('pdate reco')) {
+          p.push(mappedString)
+        }
+        // Code to handle weird edge case where updated records
+        // wasn't appearing at the end of change messages
+        if (i === a.length - 1) {
+          if (i > 0) {
+            if (p.includes('update records') || p.includes('Update records')) {
+              p = p.filter(x => !/(update records)/.test(x))
+              p.push('update records')
+            }
             p[p.length - 1] = `& ${p[p.length - 1]}`
           }
+          p[0] = `${p[0][0].toUpperCase() + p[0].slice(1)}`
         }
+
         return p
       }, [])
     return reduced.join(', ')
@@ -117,8 +121,8 @@ export class ChangeMessage {
     if (postBuild) {
       message.push('Successful build')
       if (changes.storeUpdate) message.push('Store updated')
-    } else if (isCommit && changes.members
-        && changes.members.add.concat(changes.members.remove).length > 10) {
+    } else if (isCommit && changes.members &&
+            changes.members.add.concat(changes.members.remove).length > 10) {
       message.push('Update datasets for new Congress')
     } else if (isCommit && flatChanges.count >= 10) {
       message.push('Update user datasets')
