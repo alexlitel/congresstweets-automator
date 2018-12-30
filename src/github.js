@@ -44,9 +44,9 @@ export default class GithubHelper {
         if (recursive) {
           blobPath = `data/${item[0]}.json`
         } else {
-          blobPath = i === 0
-            ? `data/${data.time.yesterdayDate}.json`
-            : `_posts/${data.time.yesterdayDate}--tweets.md`
+          blobPath = i === 0 ?
+            `data/${data.time.yesterdayDate}.json` :
+            `_posts/${data.time.yesterdayDate}--tweets.md`
         }
 
         return Object.assign(promiseData, {
@@ -77,22 +77,17 @@ export default class GithubHelper {
   }
 
 
-  async getTree(time, sha, blobs, recursive) {
+  async getTree(time, sha, blobs) {
     try {
       await this.checkValidity()
-      const { tree, sha: treeSha } = (await this.client
+      const treeSha = (await this.client
         .gitdata
         .getTree({
           ...this.config,
           sha,
           recursive: true,
-        })).data
-      if (!recursive) {
-        if (time.deleteDate) {
-          return { tree: tree.filter(item => !item.path.includes(time.deleteDate)).concat(blobs) }
-        }
-        return { tree: tree.concat(blobs) }
-      }
+        })).data.sha
+
       return { tree: blobs, base_tree: treeSha }
     } catch (e) {
       return Promise.reject(e)
@@ -163,7 +158,7 @@ export default class GithubHelper {
       await this
         .createBlobs(data, recursive)
         .then(blobs => this.getTree(data.time, headSha, blobs, recursive))
-        .then(tree => this.createTree(tree, recursive))
+        .then(tree => this.createTree(tree))
         .then(createdTree => this.createCommit(createdTree, data.time, headSha, message))
         .then(commit => this.updateReference(commit))
 
