@@ -177,9 +177,6 @@ export class Maintenance {
             const oldRec = mocData[ind]
             const isChanged = ['party', 'chamber'].filter(key => oldRec[key] !== c[key])
             c.index = oldRec.index
-            if (isChanged.includes('party') && !isChanged.includes('chamber')) {
-              c.accounts = oldRec.accounts
-            }
             if (isChanged.length) p.push(c)
           }
           return p
@@ -338,7 +335,7 @@ export class Maintenance {
 
         if (changes.members.update.length) {
           await bluebird.each(changes.members.update, (item) => {
-            tempData.users[item.index] = item
+            Object.assign(tempData.users[item.index], _.pick(item, ['chamber', 'party']))
             if (historical.data) {
               if (!historical.changed) historical.changed = true
               const histId = historical.ids.moc.indexOf(item.id.bioguide)

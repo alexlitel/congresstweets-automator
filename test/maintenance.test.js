@@ -41,8 +41,8 @@ jest.mock('fs', () => ({
     }
     return require.requireActual('fs').readFileSync(filePath)
   },
-  appendFileSync: jest.fn(() => {}),
-  writeFileSync: jest.fn(() => {}),
+  appendFileSync: jest.fn(() => { }),
+  writeFileSync: jest.fn(() => { }),
 }))
 
 const fs = require('fs')
@@ -882,21 +882,37 @@ describe('Maintenance class methods', () => {
         describe('MOC prop (state/party/chamber) changes in legislators-current dataset', () => {
           test('Updates MOC in historical and current datasets with new props', async () => {
             changes.members.update.push({
-              id: {
-                bioguide: '4',
-                govtrack: 4,
+              "id": {
+                "bioguide": "1",
+                "govtrack": 1
               },
-              name: 'Senate No Twitter Member',
-              type: 'member',
-              chamber: 'senate',
-              state: 'CA',
-              party: 'ABC',
-              accounts: [],
-              index: 8,
+              "name": "House Member",
+              "type": "member",
+              "chamber": "senate",
+              "state": "AK",
+              "party": "ABC",
+              "accounts": [
+                {
+                  "id": "3",
+                  "screen_name": "housemember1",
+                  "account_type": "office"
+                },
+                {
+                  "id": "4",
+                  "screen_name": "HouseMemberAK",
+                  "account_type": "campaign"
+                }
+              ],
+              "index": 3
             })
-            const accounts = extractAccounts(users)
+            const accounts = await extractAccounts(users)
             Object.assign(fileData, { users, accounts })
             const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            const extractedParsed = await extractAccounts(parsedChanges.toWrite.users)
+            expect(extractedParsed.some(x => x.party === 'ABC'
+              && x.screen_name === 'HouseMemberAK'
+              && x.name === 'House Member'
+              && x.chamber === 'senate')).toBeTruthy()
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(4)
             expect(parsedChanges.toWrite.users.some(x => x.party === 'ABC')).toBeTruthy()
@@ -912,8 +928,8 @@ describe('Maintenance class methods', () => {
     beforeEach(() => {
       users = nativeClone(data.users)
 
-      maintain.checkForChanges = jest.fn(() => ({ }))
-      maintain.parseChanges = jest.fn(() => ({ }))
+      maintain.checkForChanges = jest.fn(() => ({}))
+      maintain.parseChanges = jest.fn(() => ({}))
     })
 
     describe('Without existing redis store', () => {
