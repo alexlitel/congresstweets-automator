@@ -113,3 +113,4 @@ If you come across any issues, don't hesitate to file any issue in this repo, ma
 
 ## Acknowledgements
 * Dataset was created with the help of the [@unitedstates/congress-legislators](https://github.com/unitedstates/congress-legislators) project.
+* Thanks to [@likeigaveadam](https://twitter.com/LikeIGive_Adam) and [@sailorpsy](https://github.com/sailorpsy) for collating all the accounts for incoming members of the 116th Congress.
