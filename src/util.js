@@ -113,7 +113,7 @@ export const extractAccounts = userData =>
     accounts.map((account, accountIndex) =>
       Object.assign(
         {}, account, {
-          name,
+          name: account.name || name,
           type: userType,
           chamber,
           user_index: userIndex,
