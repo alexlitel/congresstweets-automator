@@ -88,7 +88,7 @@ class MockApi {
           return user
         })
       }
-    } else if (urlPath.includes('search')) {
+    } else if (urlPath.includes('search/tweets')) {
       const {
         tweets,
       } = mockData
@@ -182,7 +182,16 @@ class MockApi {
       data = mockData.user
       if (urlQuery.screen_name) data.screen_name = urlQuery.screen_name
       if (urlQuery.user_id) data.id_str = urlQuery.user_id
-    }
+    } else if (urlPath.includes('users/search')) {
+      data = Array.from(Array(20)).map((item, i) => {
+        const user = nativeClone(mockData.user)
+        user.screen_name = `Twitter${i}`
+        user.id = i
+        user.id_str = i.toString()
+
+        return user
+      })
+    } 
 
 
     return data
@@ -212,6 +221,14 @@ class MockApi {
       }
     } else if (url.path.includes('oauth2')) {
       data = mockData.token
+    } else if (url.path.includes('lookup')) {
+      data = Array.from(Array(100)).map((item, i) => {
+        const user = nativeClone(mockData.user)
+        user.screen_name = `Twitter${i}`
+        user.id = i
+        user.id_str = i.toString()
+        return user
+      })
     }
 
 

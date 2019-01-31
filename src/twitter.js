@@ -18,7 +18,7 @@ export class Tweet {
       },
       id_str: tweetId,
     } =
-        isRetweet ? data.retweeted_status : data
+      isRetweet ? data.retweeted_status : data
     return `https://www.twitter.com/${screenName}/statuses/${tweetId}`
   }
 
@@ -45,9 +45,9 @@ export class Tweet {
     if (isRetweet) {
       if (isQuote) {
         return `RT @${data.retweeted_status.user.screen_name} ` +
-                `${await this.replaceUrls(data.retweeted_status)} ` +
-                `QT @${data.retweeted_status.quoted_status.user.screen_name} ` +
-                `${await this.replaceUrls(data.retweeted_status.quoted_status)}`
+          `${await this.replaceUrls(data.retweeted_status)} ` +
+          `QT @${data.retweeted_status.quoted_status.user.screen_name} ` +
+          `${await this.replaceUrls(data.retweeted_status.quoted_status)}`
       } return `RT @${data.retweeted_status.user.screen_name} ${await this.replaceUrls(data.retweeted_status)}`
     } else if (isQuote) return `${await this.replaceUrls(data)} QT @${data.quoted_status.user.screen_name} ${await this.replaceUrls(data.quoted_status)}`
     return this.replaceUrls(data)
@@ -80,7 +80,6 @@ export class TwitterHelper {
 
       if (res.statusCode !== 200 || !!data.errors) {
         let errStr = ''
-
         switch (path) {
           case 'lists/create':
             errStr += 'cannot create list'
@@ -103,7 +102,11 @@ export class TwitterHelper {
           case 'users/show':
             errStr += 'cannot show user profile'
             break
+          case 'users/lookup':
+            errStr += 'cannot show user profiles'
+            break
           case 'search/tweets':
+          case 'users/search':
             errStr += 'invalid search query'
             break
           default:
@@ -150,6 +153,40 @@ export class TwitterHelper {
 
       if (noStatuses) props.skip_status = true
       return (await this.makeRequest('get', 'lists/members', props)).users
+    } catch (e) {
+      return Promise.reject(e)
+    }
+  }
+
+  async lookupUsers(ids, screenName = false) {
+    try {
+      if (!ids || !ids.length) throw new Error('No ids')
+      if (ids.length > 100) {
+        return bluebird.reduce(_.chunk(ids, 100), async (p, group) =>
+          p.concat(await this.lookupUsers(group, screenName)), [])
+      }
+
+      const props = {
+        [screenName ? 'screen_name' : 'user_id']: ids,
+      }
+
+      return (await this.makeRequest('post', 'users/lookup', props))
+    } catch (e) {
+      return Promise.reject(e)
+    }
+  }
+
+  async searchUsers(query, page = 0) {
+    try {
+      if (!query) throw new Error('Query is missing')
+
+      const props = {
+        q: query,
+        count: 20,
+        page,
+      }
+
+      return (await this.makeRequest('get', 'users/search', props))
     } catch (e) {
       return Promise.reject(e)
     }

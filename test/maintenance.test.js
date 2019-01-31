@@ -308,7 +308,6 @@ describe('Maintenance class methods', () => {
           redisData.accounts = extractAccounts(redisData.users)
           redisData.deactivated = { '3': 'whatever' }
           const changes = await maintain.checkForChanges(fileData, redisData)
-
           expect(changes.storeUpdate).toEqual(true)
           expect(changes.list.remove).toHaveLength(2)
           expect(changes.count).toEqual(2)

@@ -413,6 +413,35 @@ describe('TwitterHelper class methods', () => {
         await expect(twitterClient.isAccountValid()).rejects.toThrow(idErr)
       })
     })
+
+    describe('lookupUsers', () => {
+      test('Throws error without ids', async () => {
+        await expect(twitterClient.lookupUsers()).rejects.toThrow()
+      })
+
+      test('Looks up user ids', async () => {
+        const mockIds = Array.from(Array(100)).map((x, i) => `foo${i}`)
+        await expect(twitterClient.lookupUsers(mockIds)).resolves.toHaveLength(100)
+        expect(mockFns.post).toHaveBeenCalledWith('users/lookup',
+          expect.objectContaining({'user_id': expect.any(Array) }))
+      })
+      
+      test('Looks up screen names', async () => {
+        const mockIds = Array.from(Array(100)).map((x, i) => `foo${i}`)
+        await expect(twitterClient.lookupUsers(mockIds, true)).resolves.toHaveLength(100)
+        expect(mockFns.post).toHaveBeenCalledWith('users/lookup', 
+          expect.objectContaining({'screen_name': expect.any(Array) }))
+      })
+
+      test('Makes multiple function calls to look up more than 100 ids', async () => {
+        const mockIds = Array.from(Array(200)).map((x, i) => `foo${i}`)
+        await expect(twitterClient.lookupUsers(mockIds)).resolves.toHaveLength(200)
+        expect(mockFns.post).toHaveBeenCalledTimes(2)
+        expect(mockFns.post.mock.calls.every(x => 
+          x[1].user_id.length === 100
+        )).toBeTruthy()
+      })
+    })
   })
 
   describe('Search methods', () => {
@@ -520,6 +549,25 @@ describe('TwitterHelper class methods', () => {
         expect(mockFns.searchStatuses).toHaveBeenCalledTimes(1)
         expect(mockFns.get).toHaveBeenCalledTimes(1)
       })
+    })
+
+    describe('searchUsers', () => {
+      beforeEach(() => {
+        mockApi.resetOptions()
+        mockFns.searchUsers = jest.spyOn(twitterClient, 'searchUsers')
+      })
+
+      test('Throws error without query', async () => {
+        await expect(twitterClient.searchUsers()).rejects.toThrow()
+      })
+
+      test('Searches user query', async () => {
+        await expect(twitterClient.searchUsers('foo')).resolves.toHaveLength(20)
+        expect(mockFns.get).toHaveBeenCalledWith('users/search', 
+        { "count": 20, "page": 0, "q": "foo" })
+        expect(mockFns.get).toHaveBeenCalledTimes(1)
+      })
+
     })
   })
 

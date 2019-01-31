@@ -31,6 +31,13 @@ export class Maintenance {
     try {
       const changes = {}
       const ids = {}
+      const listData = (await this.twitterClient.getListMembers(true))
+        .map((account) => {
+          // eslint-disable-next-line camelcase
+          const { id_str: id, name, screen_name } = account
+          return { id, name, screen_name }
+        })
+      ids.list = listData.map(x => x.id)
       changes.list = {}
       if (this.options.postBuild) {
         const diffLength = redisData.users.length !== serializedData.length
@@ -47,22 +54,24 @@ export class Maintenance {
         ids.new = activeAccounts.new.map(x => x.id)
         ids.old = activeAccounts.old.map(x => x.id)
 
-        changes.list.add = activeAccounts.new.filter(x => !ids.old.includes(x.id))
-        changes.list.remove = activeAccounts.old.filter(x => !ids.new.includes(x.id))
-      } else {
-        const listData = (await this.twitterClient.getListMembers(true))
-          .map((account) => {
-            // eslint-disable-next-line camelcase
-            const { id_str: id, name, screen_name } = account
-            return { id, name, screen_name }
-          })
+        activeAccounts.add = activeAccounts.new.filter(x => !ids.old.includes(x.id))
 
+        // Call lookupUsers if new accounts to catch only valid ids to prevent errors
+        ids.valid = activeAccounts.add.length ?
+          (await this.twitterClient.lookupUsers(activeAccounts.add.map(x => x.id)))
+            .map(account => account.id_str)
+          : []
+        changes.list.add = activeAccounts.add.map(x => ids.valid.includes(x.id))
+        // Check for ids not in new data and currently in list
+        // so deleted accounts don't throw errors
+        changes.list.remove = activeAccounts.old.filter(x => !ids.new.includes(x.id)
+          && ids.list.includes(x.id))
+      } else {
         const mocData = serializedData
           .map((x, i) =>
             (x.type === 'member' && Object.assign({}, x, { index: i }))
-                                      || null)
+            || null)
           .filter(item => item)
-        ids.list = listData.map(x => x.id)
         ids.moc = mocData.map(x => x.id.bioguide)
         ids.allExtracted = extractedAccounts.map(x => x.id)
         ids.mocExtracted = extractedAccounts
@@ -114,7 +123,7 @@ export class Maintenance {
           json: true,
         })).filter(member =>
           ids.extMembers.includes(member.id.bioguide)
-            && (member.social
+          && (member.social
             && !!member.social.twitter))
           .map((item) => {
             const obj = {}
@@ -151,13 +160,13 @@ export class Maintenance {
               ))
             .filter(x =>
               (redisData.deactivated[x.id] === redisData.time.todayDate
-                                    && !ids.list.includes(x.id))
-                                    || (x.bioguide
-                                    && !ids.extMembers.includes(x.bioguide)))
+                && !ids.list.includes(x.id))
+              || (x.bioguide
+                && !ids.extMembers.includes(x.bioguide)))
         }
         changes.list.renamed = listData.filter(x =>
           !ids.oldNames.includes(x.screen_name.toLowerCase())
-                                                && ids.allExtracted.includes(x.id))
+          && ids.allExtracted.includes(x.id))
           .map((account) => {
             const ind = ids.allExtracted.indexOf(account.id)
             const oldRecord = extractedAccounts[ind]
@@ -206,8 +215,8 @@ export class Maintenance {
         ].some(x => x && x.length)
 
         changes.file = changes.count - ((changes.list.deactivated
-                                        && (changes.list.deactivated.length
-                                        + changes.list.reactivated.length)) || 0) !== 0
+          && (changes.list.deactivated.length
+            + changes.list.reactivated.length)) || 0) !== 0
       }
       return changes
     } catch (e) {
