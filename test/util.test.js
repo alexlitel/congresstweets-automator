@@ -7,7 +7,6 @@ import {
   serializeObj,
   createTimeObj,
   getActualUrl,
-  getFullPartyName,
   prettyPrint,
   unserializeObj,
 } from '../src/util'
@@ -310,15 +309,6 @@ describe('Utility function tests', () => {
         const c = { foo: true }
         const cStr = '{\n\t"foo": true\n}'
         expect(prettyPrint(c)).toEqual(cStr)
-      })
-    })
-
-    describe('getFullPartyName', () => {
-      test('Get full party name utility works', () => {
-        expect(getFullPartyName('d')).toBe('Democrats')
-        expect(getFullPartyName('r')).toBe('Republicans')
-        expect(getFullPartyName('bi')).toBe('Bipartisan')
-        expect(getFullPartyName('i')).toBe('Independent')
       })
     })
   })

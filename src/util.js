@@ -61,17 +61,6 @@ export const createTimeObj = (data) => {
   return mapValues(time, v => moment.isDate(v) || moment.isMoment(v) ? v.format() : v)
 }
 
-
-export const getFullPartyName = (str) => {
-  const dict = {
-    D: 'Democrats',
-    BI: 'Bipartisan',
-    I: 'Independent',
-    R: 'Republicans',
-  }
-  return dict[str.toUpperCase()]
-}
-
 export const buildQueries = (data) => {
   let queries
   if (typeof data === 'object') {
