@@ -229,6 +229,10 @@ class MockApi {
         user.id_str = i.toString()
         return user
       })
+
+      if (this.options.maintain && this.options.maintain.type === 'addNew') {
+        data[0].id_str = '123'
+      }
     }
 
 

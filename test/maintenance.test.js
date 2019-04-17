@@ -267,6 +267,7 @@ describe('Maintenance class methods', () => {
     describe('With post-build flag', () => {
       beforeEach(() => {
         maintain.options.postBuild = true
+        mockApi.options.maintain = {}
       })
 
       describe('Existing and new data are the same', () => {
@@ -285,6 +286,7 @@ describe('Maintenance class methods', () => {
 
       describe('Existing and new data are different', () => {
         test('Returns changes when users added in new data', async () => {
+          mockApi.options.maintain.type = 'addNew' 
           fileData.users.push({
             name: 'Senator Senate',
             id: { bioguide: 'FOO100', govtrack: '100000' },

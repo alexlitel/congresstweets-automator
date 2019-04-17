@@ -61,7 +61,7 @@ export class Maintenance {
           (await this.twitterClient.lookupUsers(activeAccounts.add.map(x => x.id)))
             .map(account => account.id_str)
           : []
-        changes.list.add = activeAccounts.add.map(x => ids.valid.includes(x.id))
+        changes.list.add = activeAccounts.add.filter(x => ids.valid.includes(x.id))
         // Check for ids not in new data and currently in list
         // so deleted accounts don't throw errors
         changes.list.remove = activeAccounts.old.filter(x => !ids.new.includes(x.id)
