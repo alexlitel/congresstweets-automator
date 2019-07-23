@@ -16436,6 +16436,12 @@
 				"name": "DSCC",
 				"screen_name": "dscc",
 				"account_type": "campaign"
+			},
+			{
+				"id": "1148973240355827713",
+				"screen_name": "SenDemsClimate",
+				"account_type": "office",
+				"name": "Special Committee on the Climate Crisis"
 			}
 		]
 	},
