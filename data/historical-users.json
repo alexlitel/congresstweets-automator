@@ -943,17 +943,6 @@
 		]
 	},
 	{
-		"id": {
-			"thomas_id": "HLZI",
-			"house_committee_id": "ZI",
-			"tag": "benghazi"
-		},
-		"name": "House Select Committee on the Events Surrounding the 2012 Terrorist Attack in Benghazi",
-		"chamber": "house",
-		"type": "committee",
-		"accounts": []
-	},
-	{
 		"id": {},
 		"name": "House Select Committee on the Modernization of Congress",
 		"type": "committee",
