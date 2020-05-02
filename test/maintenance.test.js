@@ -3,15 +3,9 @@ import redis from 'redis-mock'
 import path from 'path'
 import bluebird from 'bluebird'
 import MockApi from './helpers/api-mock'
-import {
-  testConfig,
-  mockChanges,
-} from './util/test-util'
+import { testConfig, mockChanges } from './util/test-util'
 import GithubHelper from '../src/github'
-import {
-  configureMaintenance,
-  Maintenance,
-} from '../src/maintenance'
+import { configureMaintenance, Maintenance } from '../src/maintenance'
 import {
   nativeClone,
   extractAccounts,
@@ -41,18 +35,22 @@ jest.mock('fs', () => ({
     }
     return require.requireActual('fs').readFileSync(filePath)
   },
-  appendFileSync: jest.fn(() => { }),
-  writeFileSync: jest.fn(() => { }),
+  appendFileSync: jest.fn(() => {}),
+  writeFileSync: jest.fn(() => {}),
 }))
 
 const fs = require('fs')
 
 const loadData = () => {
-  data.users = JSON.parse(fs.readFileSync(path.join(__dirname, '/data/users.json')))
+  data.users = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '/data/users.json'))
+  )
   data.time = {
     todayDate: '2017-02-02',
   }
-  data.tweets = JSON.parse(fs.readFileSync(path.join(__dirname, '/data/tweets-parsed.json')))
+  data.tweets = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '/data/tweets-parsed.json'))
+  )
 }
 
 const resetMocks = () => {
@@ -77,7 +75,9 @@ afterAll(() => {
 
 describe('Maintenance factory-type function instantiates correctly', () => {
   test('Instantiates as normal', () => {
-    const instance = configureMaintenance(redisClient, testConfig, { isProd: true })
+    const instance = configureMaintenance(redisClient, testConfig, {
+      isProd: true,
+    })
     expect(instance).toHaveProperty('redisClient')
     expect(instance).toHaveProperty('config')
     expect(instance.config).toHaveProperty('TWITTER_CONFIG')
@@ -98,35 +98,45 @@ describe('Maintenance factory-type function instantiates correctly', () => {
   })
 
   test('Instanties with Github client when selfUpdate flag passed', () => {
-    const instance = configureMaintenance(redisClient, testConfig, { selfUpdate: true })
+    const instance = configureMaintenance(redisClient, testConfig, {
+      selfUpdate: true,
+    })
     expect(instance).toHaveProperty('githubClient')
   })
 
   test('Throws error when postBuild or localStore flags passed without redis store', () => {
-    const err = 'Must have valid redis client for post-build maintenance or local maintenance with localStore flag'
-    expect(() => configureMaintenance(null, testConfig, { postBuild: true })).toThrow(err)
-    expect(() => configureMaintenance(null, testConfig, { localStore: true })).toThrow(err)
+    const err =
+      'Must have valid redis client for post-build maintenance or local maintenance with localStore flag'
+    expect(() =>
+      configureMaintenance(null, testConfig, { postBuild: true })
+    ).toThrow(err)
+    expect(() =>
+      configureMaintenance(null, testConfig, { localStore: true })
+    ).toThrow(err)
   })
 
   test('Throws error when selfUpdate flag passed without required Github props and noCommit flag', () => {
-    const err = 'Missing required props for Github client for self-updating maintenance'
+    const err =
+      'Missing required props for Github client for self-updating maintenance'
     const opts = { selfUpdate: true }
     expect(() => configureMaintenance(redisClient, null, opts)).toThrow(err)
-    expect(() => configureMaintenance(
-      redisClient,
-      _.omit(testConfig, ['GITHUB_CONFIG']),
-      opts,
-    )).toThrow(err)
-    expect(() => configureMaintenance(
-      redisClient,
-      _.omit(testConfig, ['GITHUB_TOKEN']),
-      opts,
-    )).toThrow(err)
-    expect(() => configureMaintenance(
-      redisClient,
-      _.omit(testConfig, ['SELF_REPO']),
-      opts,
-    )).toThrow(err)
+    expect(() =>
+      configureMaintenance(
+        redisClient,
+        _.omit(testConfig, ['GITHUB_CONFIG']),
+        opts
+      )
+    ).toThrow(err)
+    expect(() =>
+      configureMaintenance(
+        redisClient,
+        _.omit(testConfig, ['GITHUB_TOKEN']),
+        opts
+      )
+    ).toThrow(err)
+    expect(() =>
+      configureMaintenance(redisClient, _.omit(testConfig, ['SELF_REPO']), opts)
+    ).toThrow(err)
   })
 })
 
@@ -136,7 +146,11 @@ describe('Maintenance class methods', () => {
 
   beforeEach(async () => {
     jest.resetAllMocks()
-    maintain = await configureMaintenance(redisClient, nativeClone(testConfig), {})
+    maintain = await configureMaintenance(
+      redisClient,
+      nativeClone(testConfig),
+      {}
+    )
 
     // eslint-disable-next-line
     for (const key of Object.keys(mockFns)) {
@@ -145,7 +159,10 @@ describe('Maintenance class methods', () => {
     mockFns.get = jest.spyOn(maintain.twitterClient.client, 'get')
     mockFns.post = jest.spyOn(maintain.twitterClient.client, 'post')
     mockFns.createList = jest.spyOn(maintain.twitterClient, 'createList')
-    mockFns.searchStatuses = jest.spyOn(maintain.twitterClient, 'searchStatuses')
+    mockFns.searchStatuses = jest.spyOn(
+      maintain.twitterClient,
+      'searchStatuses'
+    )
     mockFns.updateList = jest.spyOn(maintain.twitterClient, 'updateList')
     mockFns.run = jest.spyOn(maintain.twitterClient, 'run')
     mockFns.sortAndFilter = jest.spyOn(Maintenance, 'sortAndFilter')
@@ -163,11 +180,25 @@ describe('Maintenance class methods', () => {
 
   describe('initStore', () => {
     test('Successfully initializes store', async () => {
-      const fileData = { users: data.users, accounts: extractAccounts(data.users) }
+      const fileData = {
+        users: data.users,
+        accounts: extractAccounts(data.users),
+      }
       const initialized = await maintain.initStore(fileData)
-      const reqProps = ['initDate', 'lastRun', 'lastUpdate', 'sinceId',
-        'collectSince', 'tweets', 'users', 'accounts', 'deactivated']
-      const storePostInit = unserializeObj(await redisClient.hgetallAsync('app'))
+      const reqProps = [
+        'initDate',
+        'lastRun',
+        'lastUpdate',
+        'sinceId',
+        'collectSince',
+        'tweets',
+        'users',
+        'accounts',
+        'deactivated',
+      ]
+      const storePostInit = unserializeObj(
+        await redisClient.hgetallAsync('app')
+      )
       expect(Object.keys(initialized)).toEqual(reqProps)
       expect(Object.keys(storePostInit)).toEqual(reqProps)
       expect(initialized).toEqual(storePostInit)
@@ -179,13 +210,20 @@ describe('Maintenance class methods', () => {
       expect(true).toBe(true)
     })
 
-    test('Successfully initializes store with current date when config INIT_DATE variable isn\'t set', async () => {
+    test("Successfully initializes store with current date when config INIT_DATE variable isn't set", async () => {
       maintain.config.INIT_DATE = null
-      const fileData = { users: data.users, accounts: extractAccounts(data.users) }
+      const fileData = {
+        users: data.users,
+        accounts: extractAccounts(data.users),
+      }
       const initialized = await maintain.initStore(fileData)
-      const storePostInit = unserializeObj(await redisClient.hgetallAsync('app'))
+      const storePostInit = unserializeObj(
+        await redisClient.hgetallAsync('app')
+      )
       expect(initialized.initDate).not.toEqual('2017-06-21')
-      expect(initialized.initDate).toEqual(expect.stringMatching(/^\d{4}(-\d{2}){2}$/))
+      expect(initialized.initDate).toEqual(
+        expect.stringMatching(/^\d{4}(-\d{2}){2}$/)
+      )
       expect(storePostInit.initDate).not.toEqual('2017-06-21')
     })
   })
@@ -199,11 +237,13 @@ describe('Maintenance class methods', () => {
       maintain.options.initList = true
       const accounts = await extractAccounts(data.users)
       await maintain.initList(accounts)
-      expect(mockFns.createList).toBeCalled()
-      expect(mockFns.updateList).toBeCalled()
+      expect(mockFns.createList).toHaveBeenCalled()
+      expect(mockFns.updateList).toHaveBeenCalled()
       expect(mockFns.updateList.mock.calls[0][0]).toEqual('create')
       expect(mockFns.post.mock.calls[0][1]).toHaveProperty('name', 'congress')
-      expect(fs.appendFileSync.mock.calls[0][0]).toEqual(expect.stringContaining('.env'))
+      expect(fs.appendFileSync.mock.calls[0][0]).toEqual(
+        expect.stringContaining('.env')
+      )
       expect(fs.appendFileSync.mock.calls[0][1]).toEqual('\nLIST_ID=11111')
       expect(maintain.twitterClient.listId).toEqual('11111')
     })
@@ -212,8 +252,8 @@ describe('Maintenance class methods', () => {
       maintain.options.initList = 'customName'
       const accounts = await extractAccounts(data.users)
       await maintain.initList(accounts)
-      expect(mockFns.createList).toBeCalled()
-      expect(mockFns.updateList).toBeCalled()
+      expect(mockFns.createList).toHaveBeenCalled()
+      expect(mockFns.updateList).toHaveBeenCalled()
       expect(mockFns.updateList.mock.calls[0][0]).toEqual('create')
       expect(mockFns.post.mock.calls[0][1]).toHaveProperty('name', 'customName')
       expect(fs.appendFileSync.mock.calls[0][0]).toMatch('.env')
@@ -224,7 +264,9 @@ describe('Maintenance class methods', () => {
     test('Throws error when run in production environment', async () => {
       maintain.options.isProd = true
       const accounts = await extractAccounts(data.users)
-      await expect(maintain.initList(accounts)).rejects.toEqual(new Error('List must be created locally'))
+      await expect(maintain.initList(accounts)).rejects.toEqual(
+        new Error('List must be created locally')
+      )
     })
   })
 
@@ -236,19 +278,28 @@ describe('Maintenance class methods', () => {
       expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(2)
       expect(mockFns.readFileSync.mock.calls[0][0]).toMatch('users')
       expect(mockFns.readFileSync.mock.calls[1][0]).toMatch('historical-users')
-      expect(mockFns.sortAndFilter.mock.calls[0][0][0].type).toEqual('committee')
+      expect(mockFns.sortAndFilter.mock.calls[0][0][0].type).toEqual(
+        'committee'
+      )
       expect(fs.writeFileSync.mock.calls[0][0]).toMatch('users')
-      expect(fs.writeFileSync.mock.calls
-        .map(call => JSON.parse(call[1]).length)).toEqual([9, 5, 9, 5])
-      expect(JSON.parse(fs.writeFileSync.mock.calls[0][1])[0].type).toMatch('caucus')
+      expect(
+        fs.writeFileSync.mock.calls.map((call) => JSON.parse(call[1]).length)
+      ).toEqual([9, 5, 9, 5])
+      expect(JSON.parse(fs.writeFileSync.mock.calls[0][1])[0].type).toMatch(
+        'caucus'
+      )
       expect(fs.writeFileSync.mock.calls[1][0]).toMatch('users-filtered')
       expect(fs.writeFileSync.mock.calls[2][0]).toMatch('historical-users')
-      expect(fs.writeFileSync.mock.calls[3][0]).toMatch('historical-users-filtered')
+      expect(fs.writeFileSync.mock.calls[3][0]).toMatch(
+        'historical-users-filtered'
+      )
     })
 
     test('Throws error when run in production environment', async () => {
       maintain.options.isProd = true
-      await expect(maintain.formatFiles()).rejects.toEqual(new Error('Can only format files locally'))
+      await expect(maintain.formatFiles()).rejects.toEqual(
+        new Error('Can only format files locally')
+      )
     })
   })
 
@@ -286,11 +337,17 @@ describe('Maintenance class methods', () => {
 
       describe('Existing and new data are different', () => {
         test('Returns changes when users added in new data', async () => {
-          mockApi.options.maintain.type = 'addNew' 
+          mockApi.options.maintain.type = 'addNew'
           fileData.users.push({
             name: 'Senator Senate',
             id: { bioguide: 'FOO100', govtrack: '100000' },
-            accounts: [{ id: '123', screen_name: 'SenatorSenate', account_type: 'office' }],
+            accounts: [
+              {
+                id: '123',
+                screen_name: 'SenatorSenate',
+                account_type: 'office',
+              },
+            ],
           })
           fileData.accounts = extractAccounts(fileData.users)
           redisData.users = nativeClone(data.users)
@@ -300,7 +357,9 @@ describe('Maintenance class methods', () => {
           expect(changes.storeUpdate).toEqual(true)
           expect(changes.list.add).toHaveLength(1)
           expect(changes.count).toEqual(1)
-          expect([..._.values(changes.list).map(x => x.id)]).not.toContain('3')
+          expect([..._.values(changes.list).map((x) => x.id)]).not.toContain(
+            '3'
+          )
         })
 
         test('Returns changes when users removed in new data', async () => {
@@ -314,7 +373,9 @@ describe('Maintenance class methods', () => {
           expect(changes.list.remove).toHaveLength(2)
           expect(changes.count).toEqual(2)
           expect(changes.list.remove[0].id).toEqual('7')
-          expect([..._.values(changes.list).map(x => x.id)]).not.toContain('3')
+          expect([..._.values(changes.list).map((x) => x.id)]).not.toContain(
+            '3'
+          )
         })
       })
     })
@@ -360,7 +421,7 @@ describe('Maintenance class methods', () => {
         expect(changes.file).toBeTruthy()
       })
 
-      test('Doesn\'t check for deactivated, deleted or reactivated accounts without redis store', async () => {
+      test("Doesn't check for deactivated, deleted or reactivated accounts without redis store", async () => {
         fileData.accounts = extractAccounts(fileData.users)
         const changes = await maintain.checkForChanges(fileData, null)
         expect(changes.list).not.toHaveProperty('deactivated')
@@ -468,7 +529,6 @@ describe('Maintenance class methods', () => {
           expect(changes.file).toBeTruthy()
         })
 
-
         test('Returns MOCs in local data from not in current-legislators dataset', async () => {
           mockApi.options.maintain.type = 'deleteCurr'
           fileData.accounts = extractAccounts(fileData.users)
@@ -520,14 +580,18 @@ describe('Maintenance class methods', () => {
       })
 
       describe('No changes', () => {
-        test('Doesn\'t return updated data or call Twitter API when new and old data are the same', async () => {
+        test("Doesn't return updated data or call Twitter API when new and old data are the same", async () => {
           const accounts = extractAccounts(users)
           Object.assign(fileData, { users, accounts })
           Object.assign(redisData, { ...fileData, isActive: true })
           changes.count = 0
-          const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+          const parsedChanges = await maintain.parseChanges(
+            changes,
+            fileData,
+            redisData
+          )
           expect(parsedChanges).toEqual({})
-          expect(mockFns.updateList).not.toBeCalled()
+          expect(mockFns.updateList).not.toHaveBeenCalled()
         })
       })
 
@@ -548,8 +612,16 @@ describe('Maintenance class methods', () => {
 
           const accounts = extractAccounts(users)
           Object.assign(fileData, { users, accounts })
-          Object.assign(redisData, { ...fileData, isActive: true, tweets: [{ id: '1' }] })
-          const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+          Object.assign(redisData, {
+            ...fileData,
+            isActive: true,
+            tweets: [{ id: '1' }],
+          })
+          const parsedChanges = await maintain.parseChanges(
+            changes,
+            fileData,
+            redisData
+          )
 
           expect(parsedChanges).not.toHaveProperty('toWrite')
           expect(parsedChanges).toHaveProperty('toStore.users')
@@ -557,10 +629,12 @@ describe('Maintenance class methods', () => {
           expect(parsedChanges).toHaveProperty('toStore.tweets')
           expect(parsedChanges.toStore.tweets.length).toBeGreaterThan(1)
           expect(parsedChanges.toStore.tweets).not.toContain('[')
-          expect(mockFns.updateList).toBeCalled()
-          expect(mockFns.run).toBeCalled()
-          expect(mockFns.searchStatuses).toBeCalled()
-          expect(mockFns.searchStatuses.mock.calls[0][0]).not.toContain('undefined')
+          expect(mockFns.updateList).toHaveBeenCalled()
+          expect(mockFns.run).toHaveBeenCalled()
+          expect(mockFns.searchStatuses).toHaveBeenCalled()
+          expect(mockFns.searchStatuses.mock.calls[0][0]).not.toContain(
+            'undefined'
+          )
           expect(mockFns.run.mock.calls[0][1]).toHaveProperty('maintenance')
           expect(mockFns.updateList.mock.calls[0][0]).toEqual('create')
           expect(mockFns.updateList.mock.calls[0][1]).toHaveLength(4)
@@ -573,11 +647,19 @@ describe('Maintenance class methods', () => {
           changes.list.remove = [{ id: '11' }]
           const accounts = extractAccounts(users)
           Object.assign(fileData, { users, accounts })
-          Object.assign(redisData, { ...fileData, isActive: true, tweets: [{ id: '1' }] })
+          Object.assign(redisData, {
+            ...fileData,
+            isActive: true,
+            tweets: [{ id: '1' }],
+          })
 
-          const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+          const parsedChanges = await maintain.parseChanges(
+            changes,
+            fileData,
+            redisData
+          )
           expect(parsedChanges).not.toHaveProperty('toWrite')
-          expect(mockFns.updateList).toBeCalled()
+          expect(mockFns.updateList).toHaveBeenCalled()
           expect(mockFns.updateList.mock.calls[0][0]).toEqual('destroy')
           expect(mockFns.updateList.mock.calls[0][1]).toHaveLength(1)
           expect(parsedChanges.toStore).toHaveProperty('users')
@@ -599,8 +681,12 @@ describe('Maintenance class methods', () => {
           Object.assign(fileData, { users, accounts })
           Object.assign(redisData, { users, accounts })
           changes.count = 0
-          const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
-          expect(mockFns.sortAndFilter).not.toBeCalled()
+          const parsedChanges = await maintain.parseChanges(
+            changes,
+            fileData,
+            redisData
+          )
+          expect(mockFns.sortAndFilter).not.toHaveBeenCalled()
           expect(parsedChanges).toEqual({})
         })
       })
@@ -616,9 +702,15 @@ describe('Maintenance class methods', () => {
             Object.assign(redisData, { users, accounts })
             redisData.deactivated = {}
             changes.list.deactivated = [{ id: '123' }]
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
-            expect(parsedChanges).toHaveProperty('toStore.deactivated', { '123': '2017-02-02' })
-            expect(mockFns.sortAndFilter).not.toBeCalled()
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
+            expect(parsedChanges).toHaveProperty('toStore.deactivated', {
+              '123': '2017-02-02',
+            })
+            expect(mockFns.sortAndFilter).not.toHaveBeenCalled()
             expect(parsedChanges).toHaveProperty('toStore.changes.deactivated')
           })
         })
@@ -633,13 +725,16 @@ describe('Maintenance class methods', () => {
             Object.assign(redisData, { users, accounts })
             redisData.deactivated = { '123': '2017-03-03' }
             changes.list.reactivated = [{ id: '123' }]
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
             expect(parsedChanges).toHaveProperty('toStore.deactivated', {})
-            expect(mockFns.sortAndFilter).not.toBeCalled()
+            expect(mockFns.sortAndFilter).not.toHaveBeenCalled()
             expect(parsedChanges).toHaveProperty('toStore.changes.reactivated')
           })
         })
-
 
         describe('Deleted accounts', () => {
           test('Removes accounts from store deactivated object and returns updated data', async () => {
@@ -647,18 +742,32 @@ describe('Maintenance class methods', () => {
             Object.assign(fileData, { users, accounts })
             Object.assign(redisData, { users, accounts })
             redisData.deactivated = { '2': '2017-03-03' }
-            changes.list.deleted = [{ id: '2', user_index: 2, name: 'Deleted Account' }]
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            changes.list.deleted = [
+              { id: '2', user_index: 2, name: 'Deleted Account' },
+            ]
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
             expect(parsedChanges).toHaveProperty('toStore.deactivated', {})
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(parsedChanges).toHaveProperty('toWrite.users-filtered')
             expect(parsedChanges).toHaveProperty('toWrite.historical-users')
-            expect(parsedChanges).toHaveProperty('toWrite.historical-users-filtered')
+            expect(parsedChanges).toHaveProperty(
+              'toWrite.historical-users-filtered'
+            )
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(4)
             expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(2)
-            expect(parsedChanges.toWrite.users[1].accounts.map(x => x.id)).not.toContain('2')
-            expect(parsedChanges.toWrite['historical-users'][1].accounts[0]).toHaveProperty('deleted')
-            expect(parsedChanges.toWrite['historical-users-filtered'][1].accounts[0]).toHaveProperty('deleted')
+            expect(
+              parsedChanges.toWrite.users[1].accounts.map((x) => x.id)
+            ).not.toContain('2')
+            expect(
+              parsedChanges.toWrite['historical-users'][1].accounts[0]
+            ).toHaveProperty('deleted')
+            expect(
+              parsedChanges.toWrite['historical-users-filtered'][1].accounts[0]
+            ).toHaveProperty('deleted')
           })
         })
 
@@ -668,18 +777,32 @@ describe('Maintenance class methods', () => {
             const accounts = extractAccounts(users)
             Object.assign(fileData, { users, accounts })
             Object.assign(redisData, { users, accounts })
-            changes.list.renamed = [{
-              id: '2', screen_name: 'renamed', user_index: 2, account_index: 0,
-            }]
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            changes.list.renamed = [
+              {
+                id: '2',
+                screen_name: 'renamed',
+                user_index: 2,
+                account_index: 0,
+              },
+            ]
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(4)
             expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(2)
-            expect(Object.keys(parsedChanges.toWrite).every(key =>
-              extractAccounts(parsedChanges.toWrite[key])
-                .map(x => x.screen_name)
-                .includes('renamed'))).toBeTruthy()
-            expect(parsedChanges.toWrite['historical-users'][1].accounts[0]).toHaveProperty('prev_names', ['HouseTwitterComm'])
+            expect(
+              Object.keys(parsedChanges.toWrite).every((key) =>
+                extractAccounts(parsedChanges.toWrite[key])
+                  .map((x) => x.screen_name)
+                  .includes('renamed')
+              )
+            ).toBeTruthy()
+            expect(
+              parsedChanges.toWrite['historical-users'][1].accounts[0]
+            ).toHaveProperty('prev_names', ['HouseTwitterComm'])
             expect(parsedChanges).toHaveProperty('toStore.changes')
           })
         })
@@ -687,7 +810,7 @@ describe('Maintenance class methods', () => {
 
       describe('External data changes', () => {
         describe('New accounts in legislators-social-media dataset', () => {
-          test('Adds new MOC\'s account to current and historical data', async () => {
+          test("Adds new MOC's account to current and historical data", async () => {
             const accounts = extractAccounts(users)
             Object.assign(fileData, { users, accounts })
             changes.members.add.push({
@@ -709,19 +832,25 @@ describe('Maintenance class methods', () => {
               isNew: true,
               index: 0,
             })
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(4)
             expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(2)
-            expect(Object.keys(parsedChanges.toWrite).every((key) => {
-              const locData = parsedChanges.toWrite[key]
-              const bios = locData.map(x => (x.id && x.id.bioguide) || null)
-              const social = extractAccounts(locData).map(x => x.id)
-              return bios.includes('100000') && social.includes('18')
-            })).toBeTruthy()
+            expect(
+              Object.keys(parsedChanges.toWrite).every((key) => {
+                const locData = parsedChanges.toWrite[key]
+                const bios = locData.map((x) => (x.id && x.id.bioguide) || null)
+                const social = extractAccounts(locData).map((x) => x.id)
+                return bios.includes('100000') && social.includes('18')
+              })
+            ).toBeTruthy()
           })
 
-          test('Adds new MOC\'s account to user in current data only when historical dataset contains user + account', async () => {
+          test("Adds new MOC's account to user in current data only when historical dataset contains user + account", async () => {
             users = users.slice(0, -2)
             changes.members.add.push({
               id: {
@@ -745,13 +874,23 @@ describe('Maintenance class methods', () => {
             })
             const accounts = extractAccounts(users)
             Object.assign(fileData, { users, accounts })
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(2)
-            expect(parsedChanges.toWrite['users-filtered'].some(user =>
-              user.accounts.length
-              && user.accounts.map(x => x.screen_name).includes('SenMember')
-              && user.name === 'Senate Member'))
+            expect(
+              parsedChanges.toWrite['users-filtered'].some(
+                (user) =>
+                  user.accounts.length &&
+                  user.accounts
+                    .map((x) => x.screen_name)
+                    .includes('SenMember') &&
+                  user.name === 'Senate Member'
+              )
+            ).toBe(true)
             expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(1)
           })
 
@@ -766,15 +905,22 @@ describe('Maintenance class methods', () => {
             })
             const accounts = extractAccounts(users)
             Object.assign(fileData, { users, accounts })
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(4)
             expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(2)
-            expect(Object.keys(parsedChanges.toWrite).every((key) => {
-              const record = parsedChanges.toWrite[key].find(x =>
-                x.id && x.id.bioguide === '3')
-              return record && record.accounts.map(x => x.id).includes('17')
-            })).toBeTruthy()
+            expect(
+              Object.keys(parsedChanges.toWrite).every((key) => {
+                const record = parsedChanges.toWrite[key].find(
+                  (x) => x.id && x.id.bioguide === '3'
+                )
+                return record && record.accounts.map((x) => x.id).includes('17')
+              })
+            ).toBeTruthy()
           })
         })
 
@@ -795,15 +941,22 @@ describe('Maintenance class methods', () => {
 
             const accounts = extractAccounts(users)
             Object.assign(fileData, { users, accounts })
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
 
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(2)
             expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(1)
-            expect(parsedChanges.toWrite.users.map(x => (x.id && x.id.bioguide) || null)).not.toContain('4')
+            expect(
+              parsedChanges.toWrite.users.map(
+                (x) => (x.id && x.id.bioguide) || null
+              )
+            ).not.toContain('4')
           })
         })
-
 
         describe('New MOCs in legislators-current dataset', () => {
           test('Adds new MOC to historical and current datasets', async () => {
@@ -820,14 +973,21 @@ describe('Maintenance class methods', () => {
             })
             const accounts = extractAccounts(users)
             Object.assign(fileData, { users, accounts })
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(4)
             expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(2)
-            expect(['users', 'historical-users'].every(key =>
-              parsedChanges.toWrite[key]
-                .map(x => (x.id && x.id.bioguide) || null)
-                .includes('100000'))).toBeTruthy()
+            expect(
+              ['users', 'historical-users'].every((key) =>
+                parsedChanges.toWrite[key]
+                  .map((x) => (x.id && x.id.bioguide) || null)
+                  .includes('100000')
+              )
+            ).toBeTruthy()
           })
 
           test('Adds new MOC to current dataset and updates record in historical dataset with new MOC props', async () => {
@@ -847,15 +1007,24 @@ describe('Maintenance class methods', () => {
             const accounts = extractAccounts(users)
             Object.assign(fileData, { users, accounts })
             redisData.time.yesterdayDate = '2017-02-02'
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(4)
             expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(2)
-            expect(parsedChanges.toWrite['historical-users'][5]).toHaveProperty('prev_props', [{
-              until: '2017-02-02',
-              party: 'R',
-              chamber: 'senate',
-            }])
+            expect(parsedChanges.toWrite['historical-users'][5]).toHaveProperty(
+              'prev_props',
+              [
+                {
+                  until: '2017-02-02',
+                  party: 'R',
+                  chamber: 'senate',
+                },
+              ]
+            )
           })
 
           test('Adds new MOC to current dataset only when MOC in historical dataset w/ props unchanged', async () => {
@@ -874,7 +1043,11 @@ describe('Maintenance class methods', () => {
             })
             const accounts = extractAccounts(users)
             Object.assign(fileData, { users, accounts })
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(2)
           })
@@ -883,41 +1056,58 @@ describe('Maintenance class methods', () => {
         describe('MOC prop (state/party/chamber) changes in legislators-current dataset', () => {
           test('Updates MOC in historical and current datasets with new props', async () => {
             changes.members.update.push({
-              "id": {
-                "bioguide": "1",
-                "govtrack": 1
+              id: {
+                bioguide: '1',
+                govtrack: 1,
               },
-              "name": "House Member",
-              "type": "member",
-              "chamber": "senate",
-              "state": "AK",
-              "party": "ABC",
-              "accounts": [
+              name: 'House Member',
+              type: 'member',
+              chamber: 'senate',
+              state: 'AK',
+              party: 'ABC',
+              accounts: [
                 {
-                  "id": "3",
-                  "screen_name": "housemember1",
-                  "account_type": "office"
+                  id: '3',
+                  screen_name: 'housemember1',
+                  account_type: 'office',
                 },
                 {
-                  "id": "4",
-                  "screen_name": "HouseMemberAK",
-                  "account_type": "campaign"
-                }
+                  id: '4',
+                  screen_name: 'HouseMemberAK',
+                  account_type: 'campaign',
+                },
               ],
-              "index": 3
+              index: 3,
             })
             const accounts = await extractAccounts(users)
             Object.assign(fileData, { users, accounts })
-            const parsedChanges = await maintain.parseChanges(changes, fileData, redisData)
-            const extractedParsed = await extractAccounts(parsedChanges.toWrite.users)
-            expect(extractedParsed.some(x => x.party === 'ABC'
-              && x.screen_name === 'HouseMemberAK'
-              && x.name === 'House Member'
-              && x.chamber === 'senate')).toBeTruthy()
+            const parsedChanges = await maintain.parseChanges(
+              changes,
+              fileData,
+              redisData
+            )
+            const extractedParsed = await extractAccounts(
+              parsedChanges.toWrite.users
+            )
+            expect(
+              extractedParsed.some(
+                (x) =>
+                  x.party === 'ABC' &&
+                  x.screen_name === 'HouseMemberAK' &&
+                  x.name === 'House Member' &&
+                  x.chamber === 'senate'
+              )
+            ).toBeTruthy()
             expect(parsedChanges).toHaveProperty('toWrite.users')
             expect(Object.keys(parsedChanges.toWrite)).toHaveLength(4)
-            expect(parsedChanges.toWrite.users.some(x => x.party === 'ABC')).toBeTruthy()
-            expect(parsedChanges.toWrite['historical-users'].some(x => x.party === 'ABC')).toBeTruthy()
+            expect(
+              parsedChanges.toWrite.users.some((x) => x.party === 'ABC')
+            ).toBeTruthy()
+            expect(
+              parsedChanges.toWrite['historical-users'].some(
+                (x) => x.party === 'ABC'
+              )
+            ).toBeTruthy()
           })
         })
       })
@@ -929,15 +1119,15 @@ describe('Maintenance class methods', () => {
     beforeEach(() => {
       users = nativeClone(data.users)
 
-      maintain.checkForChanges = jest.fn(() => ({}))
-      maintain.parseChanges = jest.fn(() => ({}))
+      jest.spyOn(maintain, 'checkForChanges').mockImplementation(() => ({}))
+      jest.spyOn(maintain, 'parseChanges').mockImplementation(() => ({}))
     })
 
     describe('Without existing redis store', () => {
       test('Initializes new redis store', async () => {
         await maintain.run()
         const redisData = unserializeObj(await redisClient.hgetallAsync('app'))
-        expect(mockFns.initStore).toBeCalled()
+        expect(mockFns.initStore).toHaveBeenCalled()
         expect(redisData).toHaveProperty('initDate')
         expect(redisData).toHaveProperty('users')
       })
@@ -948,7 +1138,7 @@ describe('Maintenance class methods', () => {
         maintain.options.app = true
         const runProcess = await maintain.run()
         const redisData = unserializeObj(await redisClient.hgetallAsync('app'))
-        expect(mockFns.initStore).toBeCalled()
+        expect(mockFns.initStore).toHaveBeenCalled()
         expect(runProcess).toHaveProperty('initDate')
         expect(runProcess).toHaveProperty('users')
         expect(redisData).toHaveProperty('initDate')
@@ -960,8 +1150,8 @@ describe('Maintenance class methods', () => {
       test('Formats files', async () => {
         maintain.options.formatOnly = true
         await maintain.run()
-        expect(mockFns.formatFiles).toBeCalled()
-        expect(mockFns.checkForChanges).not.toBeCalled()
+        expect(mockFns.formatFiles).toHaveBeenCalled()
+        expect(mockFns.checkForChanges).not.toHaveBeenCalled()
         expect(mockFns.readFileSync).toHaveBeenCalledTimes(2)
         expect(fs.writeFileSync).toHaveBeenCalledTimes(4)
         expect(mockFns.sortAndFilter).toHaveBeenCalledTimes(2)
@@ -972,8 +1162,8 @@ describe('Maintenance class methods', () => {
       test('Calls initList method to create new list', async () => {
         maintain.options.initList = true
         await maintain.run()
-        expect(mockFns.initList).toBeCalled()
-        expect(fs.appendFileSync).toBeCalled()
+        expect(mockFns.initList).toHaveBeenCalled()
+        expect(fs.appendFileSync).toHaveBeenCalled()
       })
     })
 
@@ -981,8 +1171,8 @@ describe('Maintenance class methods', () => {
       test('Calls initList method to create new list', async () => {
         maintain.twitterClient.listId = null
         await maintain.run()
-        expect(mockFns.initList).toBeCalled()
-        expect(fs.appendFileSync).toBeCalled()
+        expect(mockFns.initList).toHaveBeenCalled()
+        expect(fs.appendFileSync).toHaveBeenCalled()
       })
     })
 
@@ -992,7 +1182,9 @@ describe('Maintenance class methods', () => {
           if (user.accounts.length) {
             user.accounts = user.accounts.reduce((p, c) => {
               const { account_type: acctType } = c
-              const converted = Object.assign(_.omit(c, ['account_type']), { id_str: +c.id })
+              const converted = Object.assign(_.omit(c, ['account_type']), {
+                id_str: +c.id,
+              })
               if (!p[acctType]) {
                 p[acctType] = []
               }
@@ -1005,13 +1197,21 @@ describe('Maintenance class methods', () => {
 
         await redisClient.hmsetAsync('app', serializeObj({ users }))
         await maintain.run()
-        expect(maintain.checkForChanges.mock.calls[0][1]).toHaveProperty('users')
-        expect(maintain.checkForChanges.mock.calls[0][1].users[0]).toHaveProperty(
-          'accounts',
-          [{ account_type: 'office', id: 1, screen_name: 'HouseCaucus' }],
+        expect(maintain.checkForChanges.mock.calls[0][1]).toHaveProperty(
+          'users'
         )
-        expect(maintain.checkForChanges.mock.calls[0][1]).toHaveProperty('accounts')
-        expect(maintain.checkForChanges.mock.calls[0][1]).toHaveProperty('deactivated', {})
+        expect(
+          maintain.checkForChanges.mock.calls[0][1].users[0]
+        ).toHaveProperty('accounts', [
+          { account_type: 'office', id: 1, screen_name: 'HouseCaucus' },
+        ])
+        expect(maintain.checkForChanges.mock.calls[0][1]).toHaveProperty(
+          'accounts'
+        )
+        expect(maintain.checkForChanges.mock.calls[0][1]).toHaveProperty(
+          'deactivated',
+          {}
+        )
       })
     })
 
@@ -1023,16 +1223,34 @@ describe('Maintenance class methods', () => {
       describe('Without noCommit flag', () => {
         beforeEach(() => {
           mockApi.options.recursive = true
-          maintain.githubClient = new GithubHelper(
-            testConfig.GITHUB_TOKEN,
-            { owner: testConfig.GITHUB_CONFIG.owner, repo: testConfig.SELF_REPO },
+          maintain.githubClient = new GithubHelper(testConfig.GITHUB_TOKEN, {
+            owner: testConfig.GITHUB_CONFIG.owner,
+            repo: testConfig.SELF_REPO,
+          })
+          mockFns.createBlob = jest.spyOn(
+            maintain.githubClient.client.git,
+            'createBlob'
           )
-          mockFns.createBlob = jest.spyOn(maintain.githubClient.client.gitdata, 'createBlob')
-          mockFns.createCommit = jest.spyOn(maintain.githubClient.client.gitdata, 'createCommit')
-          mockFns.createTree = jest.spyOn(maintain.githubClient.client.gitdata, 'createTree')
-          mockFns.updateReference = jest.spyOn(maintain.githubClient.client.gitdata, 'updateReference')
-          mockFns.getTree = jest.spyOn(maintain.githubClient.client.gitdata, 'getTree')
-          mockFns.getShaOfCommitRef = jest.spyOn(maintain.githubClient.client.repos, 'getShaOfCommitRef')
+          mockFns.createCommit = jest.spyOn(
+            maintain.githubClient.client.git,
+            'createCommit'
+          )
+          mockFns.createTree = jest.spyOn(
+            maintain.githubClient.client.git,
+            'createTree'
+          )
+          mockFns.updateReference = jest.spyOn(
+            maintain.githubClient.client.git,
+            'updateRef'
+          )
+          mockFns.getTree = jest.spyOn(
+            maintain.githubClient.client.git,
+            'getTree'
+          )
+          mockFns.getShaOfCommitRef = jest.spyOn(
+            maintain.githubClient.client.repos,
+            'getCommit'
+          )
           mockFns.githubRun = jest.spyOn(maintain.githubClient, 'run')
         })
 
@@ -1041,9 +1259,9 @@ describe('Maintenance class methods', () => {
           await redisClient.hmsetAsync('app', serializeObj({ users, accounts }))
           await maintain.run()
           expect(maintain.checkForChanges.mock.calls[0]).toHaveLength(2)
-          expect(maintain.checkForChanges).toBeCalled()
-          expect(maintain.parseChanges).toBeCalled()
-          expect(mockFns.githubRun).not.toBeCalled()
+          expect(maintain.checkForChanges).toHaveBeenCalled()
+          expect(maintain.parseChanges).toHaveBeenCalled()
+          expect(mockFns.githubRun).not.toHaveBeenCalled()
         })
 
         test('Commits new data to Github and updates store', async () => {
@@ -1064,46 +1282,61 @@ describe('Maintenance class methods', () => {
           maintain.options.isProd = true
           maintain.checkForChanges.mockImplementationOnce(() => {
             const changes = mockChanges(false, false)
-            changes.members.add = [{
-              id: {
-                bioguide: '15',
-                govtrack: 15,
+            changes.members.add = [
+              {
+                id: {
+                  bioguide: '15',
+                  govtrack: 15,
+                },
+                name: 'Senate No Twitter Member 2',
+                type: 'member',
+                chamber: 'senate',
+                state: 'CA',
+                party: 'ABC',
+                accounts: [],
               },
-              name: 'Senate No Twitter Member 2',
-              type: 'member',
-              chamber: 'senate',
-              state: 'CA',
-              party: 'ABC',
-              accounts: [],
-            }]
+            ]
             return changes
           })
-          maintain.parseChanges
-            .mockImplementationOnce(() => {
-              const parsedChanges = {}
-              parsedChanges.toWrite = {}
-              parsedChanges.toWrite.users = users
-              parsedChanges.toWrite['users-filtered'] = users.filter(x => x.accounts.length)
-              parsedChanges.toWrite['historical-users'] = users
-              parsedChanges.toWrite['historical-users-filtered'] = users.filter(x => x.accounts.length)
-              parsedChanges.toStore = { deactivated: { '1': '2017-02-02' } }
-              return parsedChanges
-            })
+          maintain.parseChanges.mockImplementationOnce(() => {
+            const parsedChanges = {}
+            parsedChanges.toWrite = {}
+            parsedChanges.toWrite.users = users
+            parsedChanges.toWrite['users-filtered'] = users.filter(
+              (x) => x.accounts.length
+            )
+            parsedChanges.toWrite['historical-users'] = users
+            parsedChanges.toWrite['historical-users-filtered'] = users.filter(
+              (x) => x.accounts.length
+            )
+            parsedChanges.toStore = { deactivated: { '1': '2017-02-02' } }
+            return parsedChanges
+          })
           await maintain.run()
-          expect(mockFns.githubRun).toBeCalled()
+          expect(mockFns.githubRun).toHaveBeenCalled()
           expect(mockFns.githubRun.mock.calls[0][1]).toEqual({
             recursive: true,
-            message: 'Add Senate No Twitter Member 2\n\nMembers added:\nSenate No Twitter Member 2',
+            message:
+              'Add Senate No Twitter Member 2\n\nMembers added:\nSenate No Twitter Member 2',
           })
           expect(mockFns.createBlob).toHaveBeenCalledTimes(4)
-          expect(mockFns.createCommit).toBeCalled()
-          expect(mockFns.createCommit.mock.calls[0][0]).toHaveProperty('repo', 'test-self-repo')
-          expect(mockFns.createCommit.mock.calls[0][0]).toHaveProperty('message', 'Add Senate No Twitter Member 2\n\nMembers added:\nSenate No Twitter Member 2')
-          expect(mockFns.createTree.mock.calls[0][0].tree
-            .filter(file => file.path.includes('user'))).toHaveLength(4)
-          expect(mockFns.updateReference).toBeCalled()
-          expect(mockFns.getTree).toBeCalled()
-          expect(mockFns.getShaOfCommitRef).toBeCalled()
+          expect(mockFns.createCommit).toHaveBeenCalled()
+          expect(mockFns.createCommit.mock.calls[0][0]).toHaveProperty(
+            'repo',
+            'test-self-repo'
+          )
+          expect(mockFns.createCommit.mock.calls[0][0]).toHaveProperty(
+            'message',
+            'Add Senate No Twitter Member 2\n\nMembers added:\nSenate No Twitter Member 2'
+          )
+          expect(
+            mockFns.createTree.mock.calls[0][0].tree.filter((file) =>
+              file.path.includes('user')
+            )
+          ).toHaveLength(4)
+          expect(mockFns.updateReference).toHaveBeenCalled()
+          expect(mockFns.getTree).toHaveBeenCalled()
+          expect(mockFns.getShaOfCommitRef).toHaveBeenCalled()
         })
       })
 
@@ -1132,7 +1365,9 @@ describe('Maintenance class methods', () => {
               const parsedChanges = {}
               parsedChanges.toWrite = {}
               parsedChanges.toWrite.users = users
-              parsedChanges.toWrite['users-filtered'] = users.filter(x => x.accounts.length)
+              parsedChanges.toWrite['users-filtered'] = users.filter(
+                (x) => x.accounts.length
+              )
               return parsedChanges
             })
             .mockImplementationOnce(() => {
@@ -1144,9 +1379,13 @@ describe('Maintenance class methods', () => {
             })
           await maintain.run()
           expect(fs.writeFileSync).toHaveBeenCalledTimes(2)
-          expect(fs.writeFileSync.mock.calls
-            .every(x => x[0].endsWith('users.json') || x[0].endsWith('users-filtered.json')))
-            .toBeTruthy()
+          expect(
+            fs.writeFileSync.mock.calls.every(
+              (x) =>
+                x[0].endsWith('users.json') ||
+                x[0].endsWith('users-filtered.json')
+            )
+          ).toBeTruthy()
           expect(mockFns.maintainRun).toHaveBeenCalledTimes(2)
           expect(maintain.checkForChanges).toHaveBeenCalledTimes(2)
           expect(maintain.checkForChanges.mock.calls[0]).toHaveLength(2)

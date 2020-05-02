@@ -3,14 +3,8 @@ import qs from 'qs'
 import path from 'path'
 import fs from 'fs'
 import capitalize from 'lodash/capitalize'
-import {
-  modifyDate,
-} from '../util/test-util'
-import {
-  getTime,
-  extractAccounts,
-  nativeClone,
-} from '../../src/util'
+import { modifyDate } from '../util/test-util'
+import { getTime, extractAccounts, nativeClone } from '../../src/util'
 
 class MockApi {
   static cleanMocks() {
@@ -27,7 +21,8 @@ class MockApi {
         path: urlPath,
         query: queryParams,
       }
-    } return {
+    }
+    return {
       path: url,
     }
   }
@@ -40,16 +35,12 @@ class MockApi {
     this.options = {}
   }
 
-
   // eslint-disable-next-line
   twitterGetParser(url, req) {
     const mockData = this.loadMockData('twitter')
     let data
 
-    const {
-      path: urlPath,
-      query: urlQuery,
-    } = url
+    const { path: urlPath, query: urlQuery } = url
 
     if (urlPath.includes('list') && !urlQuery.list_id) throw new Error()
 
@@ -60,7 +51,9 @@ class MockApi {
     } else if (urlPath.includes('lists/members.json')) {
       data = {}
       if (this.options.maintain) {
-        data.users = extractAccounts(this.loadMockData('githubcontent').users).map((x) => {
+        data.users = extractAccounts(
+          this.loadMockData('githubcontent').users
+        ).map((x) => {
           x.id_str = x.id
           x.id = +x.id
           return x
@@ -82,16 +75,20 @@ class MockApi {
           if (urlQuery.skip_status) {
             if (user.status) delete user.status
           } else if (!!user.status && !!user.status.created_at) {
-            if (this.options.noTweets) user.status.created_at = modifyDate(this.date, -15, 'd')
-            else user.status.created_at = modifyDate(this.date, i < activeCount ? 10 : -15, 'm')
+            if (this.options.noTweets)
+              user.status.created_at = modifyDate(this.date, -15, 'd')
+            else
+              user.status.created_at = modifyDate(
+                this.date,
+                i < activeCount ? 10 : -15,
+                'm'
+              )
           }
           return user
         })
       }
     } else if (urlPath.includes('search/tweets')) {
-      const {
-        tweets,
-      } = mockData
+      const { tweets } = mockData
       let arrInfo = {}
 
       if (urlQuery.since_id || urlQuery.max_id) {
@@ -146,12 +143,14 @@ class MockApi {
         const item = nativeClone(tweets[0])
         item.id_str = index.toString()
         if (this.options.run) {
-          if ((this.options.multiGet && index < 275) ||
-            (!this.options.multiGet && i < 5)) {
+          if (
+            (this.options.multiGet && index < 275) ||
+            (!this.options.multiGet && i < 5)
+          ) {
             if (item.retweeted_status) delete item.retweeted_status
-            item.created_at = this.options.maintenance ?
-              modifyDate(this.date, 1, 'h') :
-              modifyDate(this.date, 15, 'm')
+            item.created_at = this.options.maintenance
+              ? modifyDate(this.date, 1, 'h')
+              : modifyDate(this.date, 15, 'm')
 
             item.id_str = index === 0 ? '000' : Math.random().toString()
             item.in_reply_to_status_id = 123456
@@ -172,13 +171,16 @@ class MockApi {
         statuses: data,
         search_metadata: {},
       }
-      if (this.options.multiGet
-        && data.statuses.length === 100
-        && arrInfo.end !== +urlQuery.since_id) {
+      if (
+        this.options.multiGet &&
+        data.statuses.length === 100 &&
+        arrInfo.end !== +urlQuery.since_id
+      ) {
         data.search_metadata.next_results = `?max_id=${arrInfo.end}&q=%23`
       }
     } else if (urlPath.includes('users/show')) {
-      if (urlQuery.screen_name === 'reject' || urlQuery.user_id === '100') throw new Error()
+      if (urlQuery.screen_name === 'reject' || urlQuery.user_id === '100')
+        throw new Error()
       data = mockData.user
       if (urlQuery.screen_name) data.screen_name = urlQuery.screen_name
       if (urlQuery.user_id) data.id_str = urlQuery.user_id
@@ -191,8 +193,7 @@ class MockApi {
 
         return user
       })
-    } 
-
+    }
 
     return data
   }
@@ -207,10 +208,14 @@ class MockApi {
         if (!url.query.list_id) throw new Error()
         if (!url.query.user_id) throw new Error()
         if (url.path.includes('members/create_all')) {
-          this.options.total = (!this.options.total ? data.member_count : this.options.total) + url.query.user_id.split(',').length
+          this.options.total =
+            (!this.options.total ? data.member_count : this.options.total) +
+            url.query.user_id.split(',').length
         } else if (url.path.includes('members/destroy_all')) {
-          this.options.total = this.options.total - url.query.user_id.split(',').length
-          if (this.options.total === data.member_count) delete this.options.total
+          this.options.total =
+            this.options.total - url.query.user_id.split(',').length
+          if (this.options.total === data.member_count)
+            delete this.options.total
         }
         if (this.options.total) data.member_count = this.options.total
       } else if (url.path.includes('lists/create')) {
@@ -235,7 +240,6 @@ class MockApi {
       }
     }
 
-
     return data
   }
   // eslint-disable-next-line
@@ -249,17 +253,20 @@ class MockApi {
       data = mockData.tree
 
       if (this.options.recursive) {
-        data.tree.push(...['users',
-          'users-filtered',
-          'historical-users',
-          'historical-users-filtered']
-          .map(x => ({
+        data.tree.push(
+          ...[
+            'users',
+            'users-filtered',
+            'historical-users',
+            'historical-users-filtered',
+          ].map((x) => ({
             sha: 'foo',
             url: 'foo',
             path: `data/${x}.json`,
             type: 'blob',
             mode: '100644',
-          })))
+          }))
+        )
       }
     }
     return data
@@ -267,7 +274,7 @@ class MockApi {
   // eslint-disable-next-line
   githubContentGetParser(url, req) {
     const mockData = this.loadMockData('githubcontent').users
-    let data = mockData.filter(user => user.type === 'member')
+    let data = mockData.filter((user) => user.type === 'member')
     if (url.path.includes('current')) {
       if (this.options.maintain.type) {
         const { type } = this.options.maintain
@@ -307,7 +314,6 @@ class MockApi {
       })
     }
 
-
     return data
   }
 
@@ -322,7 +328,7 @@ class MockApi {
     } else if (url.path.includes('git/commits')) {
       data = mockData.createcommit
       data.message = req.message
-      data.parents = req.parents.map(parent => ({
+      data.parents = req.parents.map((parent) => ({
         sha: parent,
         url: 'foo',
         html_url: 'foo',
@@ -340,7 +346,8 @@ class MockApi {
     return function (url, req) {
       try {
         const parsedUrl = that.constructor.parseUrl(url)
-        if (!!req && typeof req === 'string' && /\[|\{/.test(req)) req = JSON.parse(req)
+        if (!!req && typeof req === 'string' && /\[|\{/.test(req))
+          req = JSON.parse(req)
         const data = that[`${api}${capitalize(method)}Parser`](parsedUrl, req)
         return [200, data]
       } catch (e) {
@@ -389,9 +396,10 @@ class MockApi {
     this.type = type
     this.options = options
     this.date = getTime('2017-02-02')
-    this.mockData = fs.readFileSync(path.join(__dirname, '/../data/mock-data.json'))
+    this.mockData = fs.readFileSync(
+      path.join(__dirname, '/../data/mock-data.json')
+    )
   }
 }
-
 
 export default MockApi

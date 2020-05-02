@@ -1,70 +1,84 @@
 import _ from 'lodash'
-import {
-  TwitterHelper,
-} from './twitter'
+import { TwitterHelper } from './twitter'
 import GithubHelper from './github'
-import {
-  configureMaintenance,
-} from './maintenance'
-import {
-  createTimeObj,
-  getTime,
-  serializeObj,
-  unserializeObj,
-} from './util'
-
+import { configureMaintenance } from './maintenance'
+import { createTimeObj, getTime, serializeObj, unserializeObj } from './util'
 
 export class App {
   async init() {
-    return configureMaintenance(this.redisClient, this.config, { app: true }).run()
+    return configureMaintenance(this.redisClient, this.config, {
+      app: true,
+    }).run()
   }
 
   async run() {
     try {
-      const isActive = !!await this.redisClient.existsAsync('app')
-      const data = isActive ?
-        unserializeObj(await this.redisClient.hgetallAsync('app'))
+      const isActive = !!(await this.redisClient.existsAsync('app'))
+      const data = isActive
+        ? unserializeObj(await this.redisClient.hgetallAsync('app'))
         : await this.init()
 
       data.time = _.chain(data)
         .pick(['initDate', 'lastRun', 'lastUpdate'])
-        .mapValues(v => _.isNil(v) ? null : getTime(v))
-        .thru(timeProps => createTimeObj(timeProps))
+        .mapValues((v) => (_.isNil(v) ? null : getTime(v)))
+        .thru((timeProps) => createTimeObj(timeProps))
         .value()
 
       if (!data.lastRun) {
         data.lastRun = getTime().startOf('day').format()
       }
 
-      const twitterClient = new TwitterHelper(this.config.TWITTER_CONFIG, this.config.LIST_ID)
+      const twitterClient = new TwitterHelper(
+        this.config.TWITTER_CONFIG,
+        this.config.LIST_ID
+      )
       const twitterData = await twitterClient.run(data)
 
       const newData = {}
 
-      if (twitterData.sinceId && twitterData.sinceId !== undefined && twitterData.sinceId !== 'undefined') {
+      if (
+        twitterData.sinceId &&
+        twitterData.sinceId !== undefined &&
+        twitterData.sinceId !== 'undefined'
+      ) {
         newData.sinceId = twitterData.sinceId
       }
 
       if (data.time.yesterdayDate || twitterData.tweets.length > 0) {
-        newData.tweets = await _.uniqBy(data.time.yesterdayDate ?
-          twitterData.tweets.today :
-          data.tweets.concat(twitterData.tweets), 'id')
+        newData.tweets = await _.uniqBy(
+          data.time.yesterdayDate
+            ? twitterData.tweets.today
+            : data.tweets.concat(twitterData.tweets),
+          'id'
+        )
       }
 
       if (data.time.yesterdayDate) {
         newData.collectSince = newData.sinceId
 
-        data.tweets = await _.uniqBy(data.tweets.concat(twitterData.tweets.yesterday), 'id')
+        data.tweets = await _.uniqBy(
+          data.tweets.concat(twitterData.tweets.yesterday),
+          'id'
+        )
 
-        await new GithubHelper(this.config.GITHUB_TOKEN, this.config.GITHUB_CONFIG).run(data)
+        await new GithubHelper(
+          this.config.GITHUB_TOKEN,
+          this.config.GITHUB_CONFIG
+        ).run(data)
         // eslint-disable-next-line no-console
-        console.log(`Updated Github repo with new dataset of ${data.tweets.length} for ${data.time.yesterdayDate}`)
+        console.log(
+          `Updated Github repo with new dataset of ${data.tweets.length} for ${data.time.yesterdayDate}`
+        )
         newData.lastUpdate = data.time.todayDate
       }
 
       newData.lastRun = data.time.now
       // eslint-disable-next-line no-console
-      console.log(`Successful run process, collected ${(twitterData.tweets.yesterday || twitterData.tweets).length} new tweets`)
+      console.log(
+        `Successful run process, collected ${
+          (twitterData.tweets.yesterday || twitterData.tweets).length
+        } new tweets`
+      )
       await this.redisClient.hmsetAsync('app', serializeObj(newData))
       return true
     } catch (e) {
@@ -81,4 +95,5 @@ export class App {
   }
 }
 
-export const appBuilder = (config, redisClient, opts) => new App(config, redisClient, opts)
+export const appBuilder = (config, redisClient, opts) =>
+  new App(config, redisClient, opts)

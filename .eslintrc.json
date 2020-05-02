@@ -1,25 +1,28 @@
 {
-    "extends": ["airbnb-base"],
-    "plugins": [
-
+    "extends": [
+        "plugin:jest/all",
+        "standard",
+        "prettier"
     ],
+    "plugins": ["prettier", "jest"],
     "rules": {
-        "semi": [2, "never"],
-        "no-unexpected-multiline": 2,
-        "no-tabs": 0,
-        "no-mixed-spaces-and-tabs": 0,
-        "no-underscore-dangle": 0,
-        "no-confusing-arrow": 0,
-        "no-await-in-loop": 0,
-        "no-param-reassign": 0,
-        "no-useless-escape": 0,
-        "no-undef": 0,
-        "radix": ["error", "as-needed"]
+        "prettier/prettier": "error",
+        "jest/no-hooks": 0,
+        "jest/prefer-called-with": 0,
+        "jest/no-truthy-falsy": 0,
+        "jest/require-to-throw-message": 0,
+        "jest/require-top-level-describe": 0,
+        "jest/prefer-expect-assertions": 0,
+        "jest/prefer-strict-equal": 0,
+        "jest/lowercase-name": 0,
+        "jest/consistent-test-it": ["error", {
+            "fn": "test"
+        }]
     },
     "env": {
         "browser": false,
-        "jest": true
+        "jest": true,
+        "jest/globals": true
     },
-    "settings": {
-    }
+    "settings": {}
 }

@@ -1,8 +1,6 @@
 import bluebird from 'bluebird'
 import redis from 'redis'
-import {
-  REDIS_URL,
-} from './config'
+import { REDIS_URL } from './config'
 
 bluebird.promisifyAll(redis.RedisClient.prototype)
 bluebird.promisifyAll(redis.Multi.prototype)
@@ -22,6 +20,5 @@ redisClient.on('error', (err) => {
   console.log(`Error ${err}`)
   redisClient.quit()
 })
-
 
 export default redisClient

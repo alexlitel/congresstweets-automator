@@ -2,60 +2,76 @@ import Twit from 'twit'
 import bluebird from 'bluebird'
 import asyncReplace from 'string-replace-async'
 import _ from 'lodash'
-import {
-  buildQueries,
-  checkDateValidity,
-  getActualUrl,
-  getTime,
-} from './util'
+import { buildQueries, checkDateValidity, getActualUrl, getTime } from './util'
 
 /* eslint-disable max-len */
 export class Tweet {
   static getLink(data, isRetweet) {
     const {
-      user: {
-        screen_name: screenName,
-      },
+      user: { screen_name: screenName },
       id_str: tweetId,
-    } =
-      isRetweet ? data.retweeted_status : data
+    } = isRetweet ? data.retweeted_status : data
     return `https://www.twitter.com/${screenName}/statuses/${tweetId}`
   }
 
   static async replaceUrls(data) {
-    return asyncReplace(data.full_text, /(\bhttps\:\/\/t\.co\/\w+\b)/gi, async (match) => {
-      const nonMediaUrl = (data.entities.urls.find(item => item.url === match) || {}).expanded_url
-      if (!nonMediaUrl) {
-        if (!_.has(data, 'extended_entities.media')) return match
+    return asyncReplace(
+      data.full_text,
+      /(\bhttps:\/\/t\.co\/\w+\b)/gi,
+      async (match) => {
+        const nonMediaUrl = (
+          data.entities.urls.find((item) => item.url === match) || {}
+        ).expanded_url
+        if (!nonMediaUrl) {
+          if (!_.has(data, 'extended_entities.media')) return match
 
-        const mediaUrls = data.extended_entities.media.filter(item => item.url === match)
-        if (!mediaUrls.length) return match
-        return mediaUrls.map((item) => {
-          if (item.type === 'photo') return item.media_url
-          return `${item.media_url} ${_.minBy(item.video_info.variants, 'bitrate').url}`
-        }).join(' ')
-      } else if (!nonMediaUrl.includes('facebook.com/') && /\.\w{1,4}\/\w+$/.test(nonMediaUrl)) {
-        return getActualUrl(nonMediaUrl)
+          const mediaUrls = data.extended_entities.media.filter(
+            (item) => item.url === match
+          )
+          if (!mediaUrls.length) return match
+          return mediaUrls
+            .map((item) => {
+              if (item.type === 'photo') return item.media_url
+              return `${item.media_url} ${
+                _.minBy(item.video_info.variants, 'bitrate').url
+              }`
+            })
+            .join(' ')
+        } else if (
+          !nonMediaUrl.includes('facebook.com/') &&
+          /\.\w{1,4}\/\w+$/.test(nonMediaUrl)
+        ) {
+          return getActualUrl(nonMediaUrl)
+        }
+        return nonMediaUrl
       }
-      return nonMediaUrl
-    })
+    )
   }
 
   static async parseText(data, isRetweet, isQuote) {
     if (isRetweet) {
       if (isQuote) {
-        return `RT @${data.retweeted_status.user.screen_name} ` +
+        return (
+          `RT @${data.retweeted_status.user.screen_name} ` +
           `${await this.replaceUrls(data.retweeted_status)} ` +
           `QT @${data.retweeted_status.quoted_status.user.screen_name} ` +
           `${await this.replaceUrls(data.retweeted_status.quoted_status)}`
-      } return `RT @${data.retweeted_status.user.screen_name} ${await this.replaceUrls(data.retweeted_status)}`
-    } else if (isQuote) return `${await this.replaceUrls(data)} QT @${data.quoted_status.user.screen_name} ${await this.replaceUrls(data.quoted_status)}`
+        )
+      }
+      return `RT @${
+        data.retweeted_status.user.screen_name
+      } ${await this.replaceUrls(data.retweeted_status)}`
+    } else if (isQuote)
+      return `${await this.replaceUrls(data)} QT @${
+        data.quoted_status.user.screen_name
+      } ${await this.replaceUrls(data.quoted_status)}`
     return this.replaceUrls(data)
   }
 
   static async create(data) {
     const isRetweet = !!data.retweeted_status
-    const isQuote = !!data.quoted_status || _.has(data, 'retweeted_status.quoted_status')
+    const isQuote =
+      !!data.quoted_status || _.has(data, 'retweeted_status.quoted_status')
     data.parsed_text = await this.parseText(data, isRetweet, isQuote)
     data.link = this.getLink(data, isRetweet)
     return Promise.resolve(new Tweet(data))
@@ -68,14 +84,15 @@ export class Tweet {
     this.time = getTime(new Date(data.created_at), true)
     this.link = data.link
     this.text = data.parsed_text
-    this.source = data.source.split('"nofollow"\>')[1].slice(0, -4)
+    this.source = data.source.split('"nofollow">')[1].slice(0, -4)
   }
 }
 
 export class TwitterHelper {
   async makeRequest(method, path, props) {
     try {
-      if (!method || !path || !Object.keys(props).length) throw new Error('Invalid request parameters')
+      if (!method || !path || !Object.keys(props).length)
+        throw new Error('Invalid request parameters')
       const { data, resp: res } = await this.client[method](path, props)
 
       if (res.statusCode !== 200 || !!data.errors) {
@@ -124,11 +141,15 @@ export class TwitterHelper {
     try {
       if (!this.listId) throw new Error('List id is missing')
       else if (!action) throw new Error('Valid list action is required')
-      else if (!ids || !ids.length) throw new Error('Need user ids to perform list action')
+      else if (!ids || !ids.length)
+        throw new Error('Need user ids to perform list action')
 
       if (ids.length > 100) {
-        return (await bluebird.map(_.chunk(ids, 100), async group =>
-          this.updateList(action, group))).pop()
+        return (
+          await bluebird.map(_.chunk(ids, 100), async (group) =>
+            this.updateList(action, group)
+          )
+        ).pop()
       }
 
       const props = {
@@ -136,7 +157,11 @@ export class TwitterHelper {
         user_id: ids,
       }
 
-      return await this.makeRequest('post', `lists/members/${action}_all`, props)
+      return await this.makeRequest(
+        'post',
+        `lists/members/${action}_all`,
+        props
+      )
     } catch (e) {
       return Promise.reject(e)
     }
@@ -162,15 +187,19 @@ export class TwitterHelper {
     try {
       if (!ids || !ids.length) throw new Error('No ids')
       if (ids.length > 100) {
-        return bluebird.reduce(_.chunk(ids, 100), async (p, group) =>
-          p.concat(await this.lookupUsers(group, screenName)), [])
+        return bluebird.reduce(
+          _.chunk(ids, 100),
+          async (p, group) =>
+            p.concat(await this.lookupUsers(group, screenName)),
+          []
+        )
       }
 
       const props = {
         [screenName ? 'screen_name' : 'user_id']: ids,
       }
 
-      return (await this.makeRequest('post', 'users/lookup', props))
+      return await this.makeRequest('post', 'users/lookup', props)
     } catch (e) {
       return Promise.reject(e)
     }
@@ -186,7 +215,7 @@ export class TwitterHelper {
         page,
       }
 
-      return (await this.makeRequest('get', 'users/search', props))
+      return await this.makeRequest('get', 'users/search', props)
     } catch (e) {
       return Promise.reject(e)
     }
@@ -208,18 +237,20 @@ export class TwitterHelper {
 
   async createList(listName = null, description = null) {
     try {
-      const props = _.omitBy({
-        name: listName || 'congress',
-        mode: 'private',
-        description,
-      }, _.isNil)
+      const props = _.omitBy(
+        {
+          name: listName || 'congress',
+          mode: 'private',
+          description,
+        },
+        _.isNil
+      )
 
       return await this.makeRequest('post', 'lists/create', props)
     } catch (e) {
       return Promise.reject(e)
     }
   }
-
 
   async getUser(userId, screenName = false) {
     try {
@@ -250,15 +281,18 @@ export class TwitterHelper {
   async searchStatuses(query, sinceId, maxId, params) {
     try {
       if (!query || !query.length) throw new Error('Query required for search')
-      const props = _.omitBy({
-        q: query,
-        count: 100,
-        tweet_mode: 'extended',
-        result_type: 'recent',
-        since_id: sinceId,
-        max_id: maxId,
-        ...params,
-      }, _.isNil)
+      const props = _.omitBy(
+        {
+          q: query,
+          count: 100,
+          tweet_mode: 'extended',
+          result_type: 'recent',
+          since_id: sinceId,
+          max_id: maxId,
+          ...params,
+        },
+        _.isNil
+      )
 
       return await this.makeRequest('get', 'search/tweets', props)
     } catch (e) {
@@ -279,10 +313,13 @@ export class TwitterHelper {
         if (tweets.length) lastTweet = tweets[tweets.length - 1]
         if (!tweets.length || lastTweet.id_str === maxId) isValid = false
         else {
-          const mapped = await bluebird.map(tweets, x => Tweet.create(x))
+          const mapped = await bluebird.map(tweets, (x) => Tweet.create(x))
           collected = collected.concat(mapped)
           if (metadata.next_results && tweets.length === 100) {
-            if (!sinceId && !checkDateValidity(lastTweet.created_at, time.todayDate)) {
+            if (
+              !sinceId &&
+              !checkDateValidity(lastTweet.created_at, time.todayDate)
+            ) {
               isValid = false
             } else {
               maxId = metadata.next_results.match(/\d+/).pop()
@@ -299,13 +336,12 @@ export class TwitterHelper {
     }
   }
 
-
   switchAuthType() {
     if (!this.client.config.app_only_auth) {
-      this.client.config = Object.assign(_.pick(
-        this.client.config,
-        ['consumer_key', 'consumer_secret'],
-      ), { app_only_auth: true })
+      this.client.config = Object.assign(
+        _.pick(this.client.config, ['consumer_key', 'consumer_secret']),
+        { app_only_auth: true }
+      )
     } else {
       this.client.config = this.config
     }
@@ -313,29 +349,28 @@ export class TwitterHelper {
 
   async run(data, options = {}) {
     try {
-      const {
-        time,
-        collectSince,
-        accounts,
-      } = data
-      const {
-        maintenance: isMaintenance,
-      } = options
+      const { time, collectSince, accounts } = data
+      const { maintenance: isMaintenance } = options
       const sinceId = isMaintenance ? collectSince : data.sinceId
       let count = 0
-      let tweetsCollection = time.yesterdayDate ? {
-        yesterday: [],
-        today: [],
-      } : []
+      let tweetsCollection = time.yesterdayDate
+        ? {
+            yesterday: [],
+            today: [],
+          }
+        : []
       let newSinceId
       const maxId = isMaintenance && data.sinceId ? data.sinceId : null
-      const queries = buildQueries(isMaintenance
-        ? accounts
-        : this.listId)
+      const queries = buildQueries(isMaintenance ? accounts : this.listId)
 
       if (isMaintenance) await this.switchAuthType()
       while (count < queries.length) {
-        const tweets = await this.searchIterate(decodeURIComponent(queries[count]), sinceId, maxId, time)
+        const tweets = await this.searchIterate(
+          decodeURIComponent(queries[count]),
+          sinceId,
+          maxId,
+          time
+        )
         if (tweets.length) {
           if (!isMaintenance && !newSinceId) newSinceId = tweets[0].id
           if (time.yesterdayDate) {
@@ -346,12 +381,12 @@ export class TwitterHelper {
               return p
             }, tweetsCollection)
           } else {
-            const mappedAndValid = await bluebird
-              .filter(tweets, x => x.time.includes(time.todayDate))
+            const mappedAndValid = await bluebird.filter(tweets, (x) =>
+              x.time.includes(time.todayDate)
+            )
             tweetsCollection = tweetsCollection.concat(mappedAndValid)
           }
         }
-
 
         count += 1
       }

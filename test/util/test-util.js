@@ -1,19 +1,22 @@
 import mapValues from 'lodash/mapValues'
 import isNil from 'lodash/isNil'
-import {
-  getTime,
-} from '../../src/util'
+import { getTime } from '../../src/util'
 
+export const generateTimeProps = (initDate, lastRun, lastUpdate) =>
+  mapValues(
+    {
+      initDate,
+      lastRun,
+      lastUpdate,
+    },
+    (v) => (isNil(v) ? null : getTime(v))
+  )
 
-export const generateTimeProps = (initDate, lastRun, lastUpdate) => mapValues({
-  initDate,
-  lastRun,
-  lastUpdate,
-}, v => isNil(v) ? null : getTime(v))
+export const modifyDate = (date, offset, type) =>
+  getTime(date).add(offset, type)
 
-export const modifyDate = (date, offset, type) => getTime(date).add(offset, type)
-
-export const bufferToString = buffer => Buffer.from(buffer, 'base64').toString('utf8')
+export const bufferToString = (buffer) =>
+  Buffer.from(buffer, 'base64').toString('utf8')
 
 export const testConfig = {
   TWITTER_CONFIG: {
@@ -44,7 +47,11 @@ export const mockChanges = (postBuild, hasStore) => {
     Object.assign(changes.list, { add: [], remove: [] })
   } else {
     if (hasStore) {
-      Object.assign(changes.list, { deactivated: [], reactivated: [], deleted: [] })
+      Object.assign(changes.list, {
+        deactivated: [],
+        reactivated: [],
+        deleted: [],
+      })
     }
     changes.list.renamed = []
     changes.members = { add: [], remove: [], update: [] }

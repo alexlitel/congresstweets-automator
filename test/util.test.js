@@ -10,10 +10,7 @@ import {
   prettyPrint,
   unserializeObj,
 } from '../src/util'
-import {
-  generateTimeProps,
-  modifyDate,
-} from './util/test-util'
+import { generateTimeProps, modifyDate } from './util/test-util'
 import MockApi from './helpers/api-mock'
 
 describe('Utility function tests', () => {
@@ -81,10 +78,16 @@ describe('Utility function tests', () => {
     describe('generateTimeProps app time object pseudo-factory', () => {
       let date
 
-      beforeAll(() => { date = getTime() })
+      beforeAll(() => {
+        date = getTime()
+      })
 
       test('Returns time object when app run for first time', () => {
-        const data = generateTimeProps(getTime(date, 'YYYY-MM-DD'), undefined, undefined)
+        const data = generateTimeProps(
+          getTime(date, 'YYYY-MM-DD'),
+          undefined,
+          undefined
+        )
 
         expect(createTimeObj(data)).toMatchObject({
           now: getTime(date).startOf('hour').format(),
@@ -96,7 +99,7 @@ describe('Utility function tests', () => {
         const data = generateTimeProps(
           modifyDate(date, -2, 'days').format('YYYY-MM-DD'),
           modifyDate(date, -3, 'hours').startOf('hour'),
-          getTime(date).startOf('day'),
+          getTime(date).startOf('day')
         )
 
         expect(createTimeObj(data)).toMatchObject({
@@ -109,7 +112,7 @@ describe('Utility function tests', () => {
         const data = generateTimeProps(
           modifyDate(date, -2, 'days').format('YYYY-MM-DD'),
           modifyDate(date, -3, 'hours').startOf('hour'),
-          modifyDate(date, -1, 'days').startOf('day'),
+          modifyDate(date, -1, 'days').startOf('day')
         )
 
         expect(createTimeObj(data)).toMatchObject({
@@ -124,7 +127,7 @@ describe('Utility function tests', () => {
         const data = generateTimeProps(
           modifyDate(date, -111, 'days').format('YYYY-MM-DD'),
           modifyDate(date, -1, 'hours').startOf('hour'),
-          modifyDate(date, -11, 'days'),
+          modifyDate(date, -11, 'days')
         )
 
         expect(createTimeObj(data)).toMatchObject({
@@ -138,30 +141,35 @@ describe('Utility function tests', () => {
     })
   })
 
-
   describe('Misc utility functions', () => {
     describe('buildQueries', () => {
       describe('User array passed as argument', () => {
         test('Builds iterable url-encoded search queries of 500 chars or less', () => {
-          const names = Array.from(Array(20))
-            .map((x, i) => ({ screen_name: `TwitterMember${i}` }))
+          const names = Array.from(Array(20)).map((x, i) => ({
+            screen_name: `TwitterMember${i}`,
+          }))
           const queries = buildQueries(names)
           expect(typeof queries[0]).toEqual('string')
-          expect(queries.every(query => query.length <= 500)).toBeTruthy()
+          expect(queries.every((query) => query.length <= 500)).toBeTruthy()
         })
 
         test('Does not join query with only one user', () => {
           const names = Array.from(Array(20))
-            .map((x, i) => ({ screen_name: `TwitterMember${i}` })).slice(0, 1)
+            .map((x, i) => ({ screen_name: `TwitterMember${i}` }))
+            .slice(0, 1)
           const queries = buildQueries(names)
           expect(queries).toHaveLength(1)
-          expect(queries[0]).toEqual('from%3ATwitterMember0%20include%3Anativeretweets%20AND%20include%3Aretweets')
+          expect(queries[0]).toEqual(
+            'from%3ATwitterMember0%20include%3Anativeretweets%20AND%20include%3Aretweets'
+          )
         })
       })
 
       describe('List id passed as argument', () => {
         test('Returns array with single string with list query', () => {
-          expect(buildQueries('123')).toEqual(['list%3A123%20include%3Anativeretweets%20AND%20include%3Aretweets'])
+          expect(buildQueries('123')).toEqual([
+            'list%3A123%20include%3Anativeretweets%20AND%20include%3Aretweets',
+          ])
         })
       })
     })
@@ -170,7 +178,7 @@ describe('Utility function tests', () => {
       test('Successfully unserializes object', () => {
         const foo = {
           one: null,
-          two: '\{"foo": true\}',
+          two: '{"foo": true}',
           three: 'null',
           four: undefined,
           five: 'undefined',
@@ -197,7 +205,10 @@ describe('Utility function tests', () => {
     describe('serializeObj', () => {
       test('Serializes object for store correctly', () => {
         const obj = {
-          foo: true, foo2: null, foo3: [1, 2, 4], foo4: 'whatever',
+          foo: true,
+          foo2: null,
+          foo3: [1, 2, 4],
+          foo4: 'whatever',
         }
         expect(serializeObj(obj)).toEqual({
           foo: 'true',
@@ -206,7 +217,6 @@ describe('Utility function tests', () => {
         })
       })
     })
-
 
     describe('extractAccounts', () => {
       test('Extracts accounts from user dataset', () => {
@@ -269,7 +279,7 @@ describe('Utility function tests', () => {
           account_index: 1,
           bioguide: '123',
           state: 'CA',
-          party: 'R'
+          party: 'R',
         })
 
         expect(extractedAccounts[2]).toEqual({
@@ -294,11 +304,15 @@ describe('Utility function tests', () => {
       afterAll(() => MockApi.cleanMocks())
 
       test('Returns real url from shortened url', async () => {
-        await expect(getActualUrl('http://www.testurl.com/sh0rt')).resolves.toEqual('http://www.testurl.com/actualpage')
+        expect(await getActualUrl('http://www.testurl.com/sh0rt')).toEqual(
+          'http://www.testurl.com/actualpage'
+        )
       })
 
       test('Returns url passed as argument if url is normal', async () => {
-        await expect(getActualUrl('http://www.testurl.com/normal')).resolves.toEqual('http://www.testurl.com/normal')
+        expect(await getActualUrl('http://www.testurl.com/normal')).toEqual(
+          'http://www.testurl.com/normal'
+        )
       })
     })
   })
