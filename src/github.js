@@ -4,13 +4,12 @@ import { BuildMd } from './helpers'
 export default class GithubHelper {
   async createBlobs(data, recursive) {
     try {
-
       let promises
 
       if (recursive) {
         promises = await Object.entries(data.toWrite).map((pair) => [
           pair[0].replace(/_/g, '-'),
-          pair[1],
+          JSON.stringify(pair[1]),
         ])
       } else {
         promises = [
@@ -88,7 +87,6 @@ export default class GithubHelper {
 
   async createTree(tree) {
     try {
-
       return (
         await this.client.git.createTree({
           ...this.config,
@@ -102,7 +100,6 @@ export default class GithubHelper {
 
   async createCommit(treeSha, time, prevCommitSha, message) {
     try {
-
       const parents =
         typeof prevCommitSha === 'object' ? prevCommitSha : [prevCommitSha]
       return (
