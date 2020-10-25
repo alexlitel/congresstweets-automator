@@ -11502,6 +11502,11 @@
 				"id": "2964949642",
 				"screen_name": "SenMcSallyAZ",
 				"account_type": "office"
+			},
+			{
+				"id": "968590415740813314",
+				"screen_name": "TeamMcSally",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -11760,6 +11765,11 @@
 				"id": "2863210809",
 				"screen_name": "sendavidperdue",
 				"account_type": "office"
+			},
+			{
+				"id": "1120724841286504448",
+				"screen_name": "TeamPerdue",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -11913,6 +11923,11 @@
 				"id": "1096059529",
 				"screen_name": "SenatorRisch",
 				"account_type": "office"
+			},
+			{
+				"id": "1148757025012277249",
+				"screen_name": "Risch4Idaho",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -12088,6 +12103,11 @@
 		"state": "KY",
 		"party": "R",
 		"accounts": [
+			{
+				"id": "19029580",
+				"screen_name": "SRCC",
+				"account_type": "office"
+			},
 			{
 				"id": "339822881",
 				"screen_name": "McConnellPress",
@@ -12306,6 +12326,11 @@
 		"party": "R",
 		"accounts": [
 			{
+				"id": "13529632",
+				"screen_name": "SenSusanCollins",
+				"account_type": "campaign"
+			},
+			{
 				"id": "19726613",
 				"screen_name": "SenatorCollins",
 				"account_type": "office"
@@ -12355,6 +12380,11 @@
 				"id": "236511574",
 				"screen_name": "SenGaryPeters",
 				"account_type": "office"
+			},
+			{
+				"id": "1288203526527684609",
+				"screen_name": "TeamPetersHQ",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -12485,6 +12515,11 @@
 				"id": "983348251972816896",
 				"screen_name": "SenHydeSmith",
 				"account_type": "office"
+			},
+			{
+				"id": "1006217719002357767",
+				"screen_name": "TeamHydeSmith",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -12679,6 +12714,11 @@
 				"id": "2962923040",
 				"screen_name": "SenSasse",
 				"account_type": "office"
+			},
+			{
+				"id": "3656387175",
+				"screen_name": "TeamSasse",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -13044,6 +13084,11 @@
 				"id": "20546536",
 				"screen_name": "InhofePress",
 				"account_type": "office"
+			},
+			{
+				"id": "1191831959363829760",
+				"screen_name": "inhofeforsenate",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -13159,6 +13204,11 @@
 				"id": "486694111",
 				"screen_name": "SenJackReed",
 				"account_type": "office"
+			},
+			{
+				"id": "1264928341737553921",
+				"screen_name": "jackreed2020",
+				"account_type": "campaign"
 			}
 		]
 	},
