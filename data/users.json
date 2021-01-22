@@ -2216,7 +2216,6 @@
 				"screen_name": "RepMaxineWaters",
 				"account_type": "office"
 			},
-			{},
 			{
 				"id": "3166120541",
 				"screen_name": "MaxineWaters",
@@ -2590,7 +2589,6 @@
 		"state": "CA",
 		"party": "D",
 		"accounts": [
-			{},
 			{
 				"id": "1222257180",
 				"screen_name": "RepCardenas",
@@ -6898,7 +6896,6 @@
 				"screen_name": "FrankPallone",
 				"account_type": "office"
 			},
-			{},
 			{
 				"id": "1265423480",
 				"screen_name": "pallonefornj",
@@ -12393,8 +12390,7 @@
 				"id": "76456274",
 				"screen_name": "SenStabenow",
 				"account_type": "office"
-			},
-			{}
+			}
 		]
 	},
 	{
