@@ -15526,6 +15526,29 @@
 	},
 	{
 		"id": {
+			"bioguide": "P000145",
+			"govtrack": 456856
+		},
+		"name": "Alex Padilla",
+		"type": "member",
+		"state": "CA",
+		"chamber": "senate",
+		"party": "D",
+		"accounts": [
+			{
+				"id": "82489457",
+				"screen_name": "AlexPadilla4CA",
+				"account_type": "campaign"
+			},
+			{
+				"id": "1351236267707654145",
+				"screen_name": "SenAlexPadilla",
+				"account_type": "office"
+			}
+		]
+	},
+	{
+		"id": {
 			"bioguide": "F000062",
 			"govtrack": 300043
 		},

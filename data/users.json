@@ -11548,7 +11548,18 @@
 		"state": "CA",
 		"chamber": "senate",
 		"party": "D",
-		"accounts": []
+		"accounts": [
+			{
+				"id": "82489457",
+				"screen_name": "AlexPadilla4CA",
+				"account_type": "campaign"
+			},
+			{
+				"id": "1351236267707654145",
+				"screen_name": "SenAlexPadilla",
+				"account_type": "office"
+			}
+		]
 	},
 	{
 		"id": {
