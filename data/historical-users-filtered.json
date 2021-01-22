@@ -1064,6 +1064,11 @@
 		"party": "R",
 		"accounts": [
 			{
+				"id": "2237925464",
+				"screen_name": "CarlForAlabama",
+				"account_type": "campaign"
+			},
+			{
 				"screen_name": "RepJerryCarl",
 				"id": "1341091420439015424",
 				"account_type": "office"
@@ -3559,6 +3564,11 @@
 				"id": "25086658",
 				"screen_name": "congbillposey",
 				"account_type": "office"
+			},
+			{
+				"id": "2750346912",
+				"screen_name": "PoseyCampaign",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -5025,6 +5035,11 @@
 		"party": "R",
 		"accounts": [
 			{
+				"id": "18131106",
+				"screen_name": "millermeeks",
+				"account_type": "campaign"
+			},
+			{
 				"screen_name": "RepMMM",
 				"id": "1345807954604412929",
 				"account_type": "office"
@@ -5514,6 +5529,11 @@
 				"screen_name": "RepMaryMiller",
 				"id": "1343656635907125250",
 				"account_type": "office"
+			},
+			{
+				"id": "1180124969621168128",
+				"screen_name": "Miller_Congress",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -6139,6 +6159,11 @@
 				"screen_name": "RepMann",
 				"id": "1345825008887721986",
 				"account_type": "office"
+			},
+			{
+				"id": "963463966944059394",
+				"screen_name": "TraceyMannKS",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -6488,6 +6513,11 @@
 				"screen_name": "RepAuchincloss",
 				"id": "1330278736554582016",
 				"account_type": "office"
+			},
+			{
+				"id": "4870048156",
+				"screen_name": "JakeAuch",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -6977,6 +7007,11 @@
 				"id": "14984637",
 				"screen_name": "chelliepingree",
 				"account_type": "office"
+			},
+			{
+				"id": "1002275817227980800",
+				"screen_name": "PingreeForME",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -7348,6 +7383,11 @@
 				"screen_name": "RepLisaMcClain",
 				"id": "1344032292432437248",
 				"account_type": "office"
+			},
+			{
+				"id": "1187551973173796866",
+				"screen_name": "LisaForCongress",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -8053,6 +8093,11 @@
 				"id": "82453460",
 				"screen_name": "BennieGThompson",
 				"account_type": "office"
+			},
+			{
+				"id": "1298346252673994752",
+				"screen_name": "BGThompsonMS",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -8324,6 +8369,11 @@
 				"id": "3806081652",
 				"screen_name": "DeborahRossNC",
 				"account_type": "campaign"
+			},
+			{
+				"id": "1348683154815655940",
+				"screen_name": "RepDeborahRoss",
+				"account_type": "office"
 			}
 		]
 	},
@@ -8406,6 +8456,11 @@
 				"screen_name": "RepKManning",
 				"id": "1337115670161608712",
 				"account_type": "office"
+			},
+			{
+				"id": "936626346553413633",
+				"screen_name": "KathyManningNC",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -8689,6 +8744,11 @@
 				"id": "18805303",
 				"screen_name": "JeffFortenberry",
 				"account_type": "office"
+			},
+			{
+				"id": "1257816581318598656",
+				"screen_name": "supportfortNE",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -9240,6 +9300,11 @@
 				"screen_name": "RepTeresaLF",
 				"id": "1345147845926670337",
 				"account_type": "office"
+			},
+			{
+				"id": "1128147829606600706",
+				"screen_name": "TeresaForNM",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -10182,6 +10247,11 @@
 		"chamber": "house",
 		"party": "D",
 		"accounts": [
+			{
+				"id": "1247612029",
+				"screen_name": "RitchieTorres",
+				"account_type": "campaign"
+			},
 			{
 				"screen_name": "RepRitchie",
 				"id": "1276403757224546304",
@@ -11668,6 +11738,16 @@
 		"party": "R",
 		"accounts": [
 			{
+				"id": "400246874",
+				"screen_name": "Jenniffer2012",
+				"account_type": "campaign"
+			},
+			{
+				"id": "3857977018",
+				"screen_name": "JGO_2020",
+				"account_type": "campaign"
+			},
+			{
 				"id": "819744763020775425",
 				"screen_name": "RepJenniffer",
 				"account_type": "office"
@@ -11856,6 +11936,11 @@
 				"screen_name": "RepNancyMace",
 				"id": "1343597700542038017",
 				"account_type": "office"
+			},
+			{
+				"id": "914815520842616834",
+				"screen_name": "NancyMace",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -12061,6 +12146,11 @@
 				"screen_name": "RepHarshbarger",
 				"id": "1345787285179162624",
 				"account_type": "office"
+			},
+			{
+				"id": "1237911282440982528",
+				"screen_name": "DHarshbargerTN1",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -13022,6 +13112,11 @@
 				"id": "15751083",
 				"screen_name": "michaelcburgess",
 				"account_type": "office"
+			},
+			{
+				"id": "1272912622942388229",
+				"screen_name": "DrBurgessTX",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -13100,6 +13195,11 @@
 		"chamber": "house",
 		"party": "R",
 		"accounts": [
+			{
+				"id": "256157258",
+				"screen_name": "FallonForTexas",
+				"account_type": "campaign"
+			},
 			{
 				"screen_name": "RepPatFallon",
 				"id": "1343258042704527362",
@@ -13352,6 +13452,11 @@
 				"id": "3299995136",
 				"screen_name": "SheriffTNehls",
 				"account_type": "campaign"
+			},
+			{
+				"id": "1347318288850825217",
+				"screen_name": "RepTroyNehls",
+				"account_type": "office"
 			}
 		]
 	},
@@ -13484,6 +13589,11 @@
 		"chamber": "house",
 		"party": "R",
 		"accounts": [
+			{
+				"id": "551935844",
+				"screen_name": "ElectBlakeMoore",
+				"account_type": "campaign"
+			},
 			{
 				"screen_name": "RepBlakeMoore",
 				"id": "1337452596093587462",
@@ -13961,6 +14071,11 @@
 				"screen_name": "RepBobGood",
 				"id": "1345536897838436353",
 				"account_type": "office"
+			},
+			{
+				"id": "1191470062340845568",
+				"screen_name": "GoodForCongress",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -14256,6 +14371,11 @@
 				"screen_name": "RepStricklandWA",
 				"id": "1343646545955213312",
 				"account_type": "office"
+			},
+			{
+				"id": "1206654366758785024",
+				"screen_name": "StricklandforWA",
+				"account_type": "campaign"
 			}
 		]
 	},
@@ -14567,6 +14687,11 @@
 				"id": "3389296557",
 				"screen_name": "TomTiffanyWI",
 				"account_type": "campaign"
+			},
+			{
+				"id": "1267841066335682562",
+				"screen_name": "RepTiffany",
+				"account_type": "office"
 			}
 		]
 	},
@@ -17758,6 +17883,11 @@
 				"id": "1152598802873880576",
 				"screen_name": "BillHagertyTN",
 				"account_type": "campaign"
+			},
+			{
+				"id": "1346873610875654147",
+				"screen_name": "SenatorHagerty",
+				"account_type": "office"
 			}
 		]
 	},
