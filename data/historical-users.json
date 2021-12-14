@@ -1671,11 +1671,6 @@
 		"party": "D",
 		"accounts": [
 			{
-				"id": "144927376",
-				"screen_name": "BarbaraLeeSays",
-				"account_type": "campaign"
-			},
-			{
 				"id": "248735463",
 				"screen_name": "RepBarbaraLee",
 				"account_type": "office"
