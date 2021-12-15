@@ -947,6 +947,19 @@
 	},
 	{
 		"id": {},
+		"name": "House Select Committee to Investigate the January 6th Attack on the United States Capitol",
+		"type": "committee",
+		"chamber": "house",
+		"accounts": [
+			{
+				"id": "1415384176593883137",
+				"screen_name": "January6thCmte",
+				"account_type": "office"
+			}
+		]
+	},
+	{
+		"id": {},
 		"name": "House Select Subcommittee on the Coronavirus Crisis",
 		"type": "committee",
 		"chamber": "house",
