@@ -60,7 +60,7 @@ resources:
   congressAutoBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: congresstweets_auto
+      BucketName: congresstweetsauto
 
 functions:
   updateData:
