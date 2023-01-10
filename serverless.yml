@@ -1,5 +1,5 @@
 service: congresstweets-auto
-app: congresstweets
+app: congresstweets-auto
 org: alexlitel
 
 package:
