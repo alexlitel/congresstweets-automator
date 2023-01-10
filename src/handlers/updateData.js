@@ -1,10 +1,10 @@
-import { configureMaintenance } from './maintenance'
-import { APP_CONFIG } from './config'
-import { parsedFlags, isProd } from './util'
+import { configureMaintenance } from '../maintenance'
+import { APP_CONFIG, IS_PROD } from '../config'
+import { parsedFlags } from '../util'
 
 const runProcess = async () => {
   try {
-    const flags = { ...parsedFlags, isProd }
+    const flags = { ...parsedFlags, isProd: IS_PROD }
     const maintain = configureMaintenance(APP_CONFIG, flags)
     await maintain.run()
   } catch (e) {

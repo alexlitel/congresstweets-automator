@@ -1,5 +1,5 @@
-import { appBuilder } from './app'
-import { APP_CONFIG } from './config'
+import { appBuilder } from '../app'
+import { APP_CONFIG } from '../config'
 
 const runProcess = async () => {
   try {

@@ -1,6 +1,4 @@
-# Congressional Tweet Automator
-[![Build Status](https://img.shields.io/travis/alexlitel/congresstweets-automator.svg?style=flat-square)](https://travis-ci.org/alexlitel/congresstweets-automator)
-[![Coverage Status](https://img.shields.io/coveralls/alexlitel/congresstweets-automator.svg?style=flat-square)](https://coveralls.io/github/alexlitel/congresstweets-automator?branch=master)
+# Congressional Tweet Automator)
 
 This repo houses the backend portion of a project collecting the daily tweets of both houses of Congress (plus joint committees), encompassing 1,000+ campaign, office, committee and party accounts. It's designed to be used in concert with the [Tweets of Congress site](https://github.com/alexlitel/congresstweets), which features JSON datasets compiled daily by this app.
 
@@ -26,10 +24,6 @@ There are a number of options that you can pass to the maintenance processes to 
 * **`format-only`**: in local environment, simply sorts the dataset files tidily.
 
    *aliases: `format`, `ff`, `formatfiles`, `formatonly`, `fo`, `fmt`*
-   
-* **`has-bot`**: allows for saving the list-related changes from the self-updating maintenance process to the store, which can be used for a Twitter bot that sends out messages when an account is deactivated or renamed, or reactivated.
-
-   *aliases: `hb`, `hasbot`, `bot`*
    
 * **`init-list`**: in local environment, allows for the initialization of a Twitter list, and appends the list `id_str` as a `LIST_ID` in the `.env` file for later use. Optionally, you can set this option to a string value to customize the name of the list, otherwise it defaults to `congress`. 
 

@@ -1,50 +1,65 @@
 import _ from 'lodash'
-import bluebird from 'bluebird'
 import path from 'path'
 import rp from 'request-promise'
 import fs from 'fs'
-import { TwitterHelper } from './twitter'
-import { ChangeMessage } from './helpers'
-import GithubHelper from './github'
 import {
-  createTimeObj,
-  getTime,
-  nativeClone,
-  extractAccounts,
-  serializeObj,
-  unserializeObj,
-} from './util'
+  collectTweets,
+  createList,
+  getListMembers,
+  lookupUsers,
+  updateList,
+} from './twitter/api'
+import { createChangeMessage } from './changeMessage'
+import { updateRepo } from './github'
+import { createTimeObj, getTime, nativeClone, extractAccounts } from './util'
+import { GITHUB_CONFIG, SELF_REPO } from './config'
+import {
+  checkIfBucketDataExists,
+  loadBucketData,
+  writeBucketData,
+} from './awsData'
+
+export const sortAndFilter = (data) => {
+  const obj = {}
+  obj.sorted = _.sortBy(data, ['chamber', 'type', 'state', 'name', 'party'])
+  obj.filtered = obj.sorted.filter(
+    (item) => !!item.accounts && !!item.accounts.length
+  )
+  return obj
+}
+
+export const getRepoData = async (historical = false) => {
+  const data = await rp({
+    gzip: true,
+    url: `https://raw.githubusercontent.com/alexlitel/congresstweets-accounts/master/${
+      historical ? 'historical- ' : ''
+    }users.json`,
+    json: true,
+  })
+
+  return data
+}
 
 export class Maintenance {
-  static sortAndFilter(data) {
-    const obj = {}
-    obj.sorted = _.sortBy(data, ['chamber', 'type', 'state', 'name', 'party'])
-    obj.filtered = obj.sorted.filter(
-      (item) => !!item.accounts && !!item.accounts.length
-    )
-    return obj
-  }
-
   async checkForChanges(
     { users: serializedData, accounts: extractedAccounts },
-    redisData
+    bucketData
   ) {
     try {
       const changes = {}
       const ids = {}
-      const listData = (await this.twitterClient.getListMembers(true)).map(
-        (account) => {
-          // eslint-disable-next-line camelcase
-          const { id_str: id, name, screen_name } = account
-          return { id, name, screen_name }
-        }
-      )
+      const listData = (await getListMembers(true)).map((account) => {
+        // eslint-disable-next-line camelcase
+        const { id_str: id, screen_name } = account
+        // eslint-disable-next-line camelcase
+        return { id, screen_name }
+      })
       ids.list = listData.map((x) => x.id)
       changes.list = {}
       if (this.options.postBuild) {
-        const diffLength = redisData.users.length !== serializedData.length
+        const diffLength = bucketData.users.length !== serializedData.length
         const diffs = _.differenceWith(
-          redisData.users,
+          bucketData.users,
           serializedData,
           _.isEqual
         )
@@ -52,11 +67,11 @@ export class Maintenance {
 
         const activeAccounts = {}
         activeAccounts.new = extractedAccounts.filter(
-          (account) => !redisData.deactivated[account.id]
+          (account) => !bucketData.deactivated[account.id]
         )
 
-        activeAccounts.old = redisData.accounts.filter(
-          (account) => !redisData.deactivated[account.id]
+        activeAccounts.old = bucketData.accounts.filter(
+          (account) => !bucketData.deactivated[account.id]
         )
 
         ids.new = activeAccounts.new.map((x) => x.id)
@@ -68,11 +83,9 @@ export class Maintenance {
 
         // Call lookupUsers if new accounts to catch only valid ids to prevent errors
         ids.valid = activeAccounts.add.length
-          ? (
-              await this.twitterClient.lookupUsers(
-                activeAccounts.add.map((x) => x.id)
-              )
-            ).map((account) => account.id_str)
+          ? (await lookupUsers(activeAccounts.add.map((x) => x.id))).map(
+              (account) => account.id_str
+            )
           : []
         changes.list.add = activeAccounts.add.filter((x) =>
           ids.valid.includes(x.id)
@@ -101,8 +114,7 @@ export class Maintenance {
         outsideData.members = (
           await rp({
             gzip: true,
-            url:
-              'https://raw.githubusercontent.com/unitedstates/congress-legislators/gh-pages/legislators-current.json',
+            url: 'https://raw.githubusercontent.com/unitedstates/congress-legislators/gh-pages/legislators-current.json',
             json: true,
           })
         ).map((item) => {
@@ -149,8 +161,7 @@ export class Maintenance {
         outsideData.social = (
           await rp({
             gzip: true,
-            url:
-              'https://raw.githubusercontent.com/unitedstates/congress-legislators/gh-pages/legislators-social-media.json',
+            url: 'https://raw.githubusercontent.com/unitedstates/congress-legislators/gh-pages/legislators-social-media.json',
             json: true,
           })
         )
@@ -175,10 +186,10 @@ export class Maintenance {
             return obj
           })
 
-        if (redisData && redisData.users) {
+        if (bucketData && bucketData.users) {
           changes.list = extractedAccounts.reduce(
             (p, c) => {
-              if (redisData.deactivated[c.id]) {
+              if (bucketData.deactivated[c.id]) {
                 if (ids.list.includes(c.id)) p.reactivated.push(c)
               } else if (!ids.list.includes(c.id)) p.deactivated.push(c)
               return p
@@ -189,7 +200,7 @@ export class Maintenance {
           // Accounts that have been inactive for 30+ days, when Twitter deletes account
           // Or deactivated accounts that will be removed because
           // members were removed in external data
-          changes.list.deleted = await Object.keys(redisData.deactivated)
+          changes.list.deleted = await Object.keys(bucketData.deactivated)
             .map((x) =>
               Object.assign(
                 {},
@@ -199,7 +210,7 @@ export class Maintenance {
             )
             .filter(
               (x) =>
-                (redisData.deactivated[x.id] === redisData.time.todayDate &&
+                (bucketData.deactivated[x.id] === bucketData.time.todayDate &&
                   !ids.list.includes(x.id)) ||
                 (x.bioguide && !ids.extMembers.includes(x.bioguide))
             )
@@ -241,7 +252,7 @@ export class Maintenance {
         .filter((x) => typeof changes[x] === 'object')
         .reduce(
           (p, c) =>
-            p + _.values(changes[c]).reduce((p2, c2) => p2 + c2.length, 0),
+            p + Object.values(changes[c]).reduce((p2, c2) => p2 + c2.length, 0),
           0
         )
 
@@ -268,7 +279,7 @@ export class Maintenance {
     }
   }
 
-  async parseChanges(changes, fileData, redisData) {
+  async parseChanges(changes, fileData, bucketData) {
     try {
       const newData = {}
       const toStore = {}
@@ -282,21 +293,21 @@ export class Maintenance {
 
         if (changes.count) {
           if (changes.list.remove.length)
-            await this.twitterClient.updateList(
+            await updateList(
               'destroy',
               changes.list.remove.map((x) => x.id)
             )
           if (changes.list.add.length) {
-            await this.twitterClient.updateList(
+            await updateList(
               'create',
               changes.list.add.map((x) => x.id)
             )
-            if (redisData.isActive && redisData.tweets.length) {
-              redisData.accounts = changes.list.add
-              const twitterData = await this.twitterClient.run(redisData, {
+            if (bucketData.isActive && bucketData.tweets.length) {
+              bucketData.accounts = changes.list.add
+              const twitterData = await collectTweets(bucketData, {
                 maintenance: true,
               })
-              toStore.tweets = redisData.tweets.concat(twitterData.tweets)
+              toStore.tweets = bucketData.tweets.concat(twitterData.tweets)
             }
           }
         }
@@ -306,13 +317,9 @@ export class Maintenance {
 
         if (changes.file) tempData.users = nativeClone(fileData.users)
 
-        if (!this.options.noCommit && changes.historical) {
+        if (changes.historical) {
           historical.changed = false
-          historical.data = await JSON.parse(
-            fs.readFileSync(
-              path.join(__dirname, '/../data/historical-users.json')
-            )
-          )
+          historical.data = await getRepoData(true)
           historical.accounts = await extractAccounts(historical.data)
           historical.ids = {}
           historical.ids.moc = historical.data.map(
@@ -322,36 +329,30 @@ export class Maintenance {
           tempData.historical_users = nativeClone(historical.data)
         }
 
-        if (redisData.users) {
+        if (bucketData.users) {
           const accountsChanged = [
             'deleted',
             'deactivated',
             'reactivated',
           ].some((x) => changes.list[x].length)
-          const serializableChanges = this.options.hasBot
-            ? _.omitBy(changes.list, (v, k) => k === 'deleted' || !v.length)
-            : null
 
           if (accountsChanged) {
             const idsToRemove = changes.list.reactivated
               .concat(changes.list.deleted)
               .map((x) => x.id)
-            toStore.deactivated = _.chain(redisData.deactivated)
+            toStore.deactivated = _.chain(bucketData.deactivated)
               .omit(idsToRemove)
               .merge(
                 changes.list.deactivated.reduce((p, c) => {
-                  p[c.id] = redisData.time.todayDate
+                  p[c.id] = bucketData.time.todayDate
                   return p
                 }, {})
               )
               .value()
           }
-          if (serializableChanges && Object.keys(serializableChanges).length) {
-            toStore.changes = serializableChanges
-          }
 
           if (changes.list.deleted.length) {
-            await bluebird.each(changes.list.deleted, (item) => {
+            for await (const item of changes.list.deleted) {
               const record = tempData.users[item.user_index]
               record.accounts = record.accounts.filter(
                 (account) => account.id !== item.id
@@ -364,12 +365,12 @@ export class Maintenance {
                   tempData.historical_users[histAccount.user_index]
                 histRecord.accounts[histAccount.account_index].deleted = true
               }
-            })
+            }
           }
         }
 
         if (changes.list.renamed.length) {
-          await bluebird.each(changes.list.renamed, (item) => {
+          for await (const item of changes.list.renamed) {
             tempData.users[item.user_index].accounts[
               item.account_index
             ].screen_name = item.screen_name
@@ -385,11 +386,11 @@ export class Maintenance {
               histRecord.prev_names.push(histAccount.screen_name)
               histRecord.screen_name = item.screen_name
             }
-          })
+          }
         }
 
         if (changes.social.add.length) {
-          await bluebird.each(changes.social.add, (item) => {
+          for await (const item of changes.social.add) {
             const newItem = _.omit(item, ['bioguide', 'name', 'index', 'isNew'])
             const record = item.isNew
               ? changes.members.add[item.index]
@@ -403,15 +404,16 @@ export class Maintenance {
                 tempData.historical_users[histId].accounts.push(newItem)
               }
             }
-          })
+          }
         }
 
         if (changes.members.update.length) {
-          await bluebird.each(changes.members.update, (item) => {
+          for await (const item of changes.members.update) {
             Object.assign(
               tempData.users[item.index],
               _.pick(item, ['chamber', 'party'])
             )
+
             if (historical.data) {
               if (!historical.changed) historical.changed = true
               const histId = historical.ids.moc.indexOf(item.id.bioguide)
@@ -429,12 +431,12 @@ export class Maintenance {
               if (!histRecord.prev_props) histRecord.prev_props = []
               histRecord.prev_props.push(
                 Object.assign({}, diffs.old, {
-                  until: redisData.time.yesterdayDate,
+                  until: bucketData.time.yesterdayDate,
                 })
               )
               Object.assign(histRecord, diffs.new)
             }
-          })
+          }
         }
 
         if (changes.members.remove.length) {
@@ -450,7 +452,7 @@ export class Maintenance {
         if (changes.members.add.length) {
           tempData.users.push(...changes.members.add)
           if (historical.data) {
-            await bluebird.each(changes.members.add, (item) => {
+            for await (const item of changes.members.add) {
               const histId = historical.ids.moc.indexOf(item.id.bioguide)
               if (histId !== -1) {
                 const histRecord = tempData.historical_users[histId]
@@ -469,7 +471,7 @@ export class Maintenance {
                   if (!histRecord.prev_props) histRecord.prev_props = []
                   histRecord.prev_props.push(
                     Object.assign({}, diffs.old, {
-                      until: redisData.time.yesterdayDate,
+                      until: bucketData.time.yesterdayDate,
                     })
                   )
                   Object.assign(histRecord, diffs.new)
@@ -478,7 +480,7 @@ export class Maintenance {
                 if (!historical.changed) historical.changed = true
                 tempData.historical_users.push(item)
               }
-            })
+            }
           }
         }
 
@@ -488,11 +490,12 @@ export class Maintenance {
               ? _.mapKeys(tempData, (v, k) => k.replace(/_/g, '-'))
               : _.omit(tempData, ['historical_users'])
           }
-          await bluebird.each(Object.keys(tempData), (key) => {
-            const data = this.constructor.sortAndFilter(tempData[key])
+
+          for await (const key of Object.keys(tempData)) {
+            const data = sortAndFilter(tempData[key])
             tempData[key] = data.sorted
             tempData[`${key}-filtered`] = data.filtered
-          })
+          }
 
           Object.assign(toWrite, tempData)
         }
@@ -509,12 +512,6 @@ export class Maintenance {
   async initStore({ users, accounts }) {
     try {
       const obj = {
-        initDate:
-          this.config.INIT_DATE ||
-          (this.options.app
-            ? getTime().startOf('hour')
-            : getTime().startOf('hour').add(1, 'h')
-          ).format('YYYY-MM-DD'),
         lastRun: null,
         lastUpdate: null,
         sinceId: null,
@@ -524,10 +521,8 @@ export class Maintenance {
         accounts,
         deactivated: {},
       }
-      await this.redisClient.hmsetAsync(
-        'app',
-        _.mapValues(obj, (v) => JSON.stringify(v))
-      )
+
+      await writeBucketData(obj)
       return obj
     } catch (e) {
       return Promise.reject(e)
@@ -539,16 +534,17 @@ export class Maintenance {
       if (this.options.isProd) throw new Error('List must be created locally')
       const listName =
         typeof this.options.initList === 'string' ? this.options.initList : null
-      const createdList = await this.twitterClient.createList(listName)
+      const createdList = await createList(listName)
       await fs.appendFileSync(
         path.join(__dirname, '../.env'),
         `\nLIST_ID=${createdList.id_str}`,
         'utf8'
       )
-      this.twitterClient.listId = createdList.id_str
-      await this.twitterClient.updateList(
+
+      await updateList(
         'create',
-        accounts.map((x) => x.id)
+        accounts.map((x) => x.id),
+        createdList.id_str
       )
       return true
     } catch (e) {
@@ -560,15 +556,13 @@ export class Maintenance {
     if (this.options.isProd) throw new Error('Can only format files locally')
     const files = ['users', 'historical-users']
     const folder = path.join(__dirname, '../data/')
-    await bluebird.each(files, (file) => {
+    for await (const file of files) {
       const filePath = path.join(folder, `${file}.json`)
       const filteredPath = path.join(folder, `${file}-filtered.json`)
-      const data = this.constructor.sortAndFilter(
-        JSON.parse(fs.readFileSync(filePath))
-      )
+      const data = sortAndFilter(JSON.parse(fs.readFileSync(filePath)))
       fs.writeFileSync(filePath, JSON.stringify(data.sorted))
       fs.writeFileSync(filteredPath, JSON.stringify(data.filtered))
-    })
+    }
     return true
   }
 
@@ -577,14 +571,9 @@ export class Maintenance {
       if (this.options.formatOnly) return await this.formatFiles()
       const fileData = {}
 
-      fileData.users = await JSON.parse(
-        fs.readFileSync(path.join(__dirname, '/../data/users.json'))
-      )
+      fileData.users = await getRepoData()
 
       fileData.accounts = await extractAccounts(fileData.users)
-
-      let isActive
-      let redisData
 
       if (
         this.twitterClient &&
@@ -593,87 +582,50 @@ export class Maintenance {
         await this.initList(fileData.accounts)
       }
 
-      if (this.redisClient) {
-        isActive =
-          (await this.redisClient.existsAsync('app')) && !this.options.app
-        redisData = isActive
-          ? unserializeObj(await this.redisClient.hgetallAsync('app'))
-          : await this.initStore(fileData)
+      const isActive = (await checkIfBucketDataExists()) && !this.options.app
 
-        if (this.options.app) return redisData
-        redisData.time = _.chain(redisData)
-          .pick(['initDate', 'lastRun', 'lastUpdate'])
-          .mapValues((v) => (_.isNil(v) ? null : getTime(v)))
-          .thru((timeProps) => createTimeObj(timeProps))
-          .value()
-        if (!this.options.postBuild && !redisData.time.yesterdayDate) {
-          redisData.time.yesterdayDate = getTime(redisData.time.todayDate)
-            .subtract(1, 'days')
-            .format('YYYY-MM-DD')
-        }
-        redisData.isActive = isActive
-      } else {
-        redisData = {}
-        redisData.time = createTimeObj({})
+      const bucketData = isActive
+        ? await loadBucketData()
+        : await this.initStore(fileData)
+
+      if (this.options.app) return bucketData
+      bucketData.time = _.chain(bucketData)
+        .pick(['lastRun', 'lastUpdate'])
+        .mapValues((v) => (_.isNil(v) ? null : getTime(v)))
+        .thru((timeProps) => createTimeObj(timeProps))
+        .value()
+      if (!this.options.postBuild && !bucketData.time.yesterdayDate) {
+        bucketData.time.yesterdayDate = getTime(bucketData.time.todayDate)
+          .subtract(1, 'days')
+          .format('YYYY-MM-DD')
       }
+      bucketData.isActive = isActive
 
-      // handle backwards compatibility
-      if (redisData && isActive) {
-        if (!_.isArray(redisData.users[0].accounts)) {
-          redisData.users = await _.flatMap(redisData.users, (user) => {
-            user.accounts = Object.keys(user.accounts).reduce((p, c) => {
-              const accounts = user.accounts[c].map((x) => {
-                x.account_type = c
-                x.id = x.id_str
-                delete x.id_str
-                return x
-              })
-              p.push(...accounts)
-              return p
-            }, [])
-            return user
-          })
-        }
-        if (!redisData.deactivated) redisData.deactivated = {}
-        if (!redisData.accounts)
-          redisData.accounts = await extractAccounts(redisData.users)
-      }
-
-      const args = await [fileData, redisData].map((x) =>
+      const args = await [fileData, bucketData].map((x) =>
         x ? nativeClone(x) : null
       )
       const changes = await this.checkForChanges(...args)
-      const newData = await this.parseChanges(changes, fileData, redisData)
+      const newData = await this.parseChanges(changes, fileData, bucketData)
 
       // eslint-disable-next-line no-console
-      console.log(await ChangeMessage.create(changes, this.options))
+      console.log(await createChangeMessage(changes, this.options))
 
       if (Object.keys(newData).length) {
         if (newData.toStore && Object.keys(newData.toStore).length) {
-          await this.redisClient.hmsetAsync(
-            'app',
-            serializeObj(newData.toStore)
-          )
+          await writeBucketData(newData.toStore)
         }
         if (newData.toWrite && Object.keys(newData.toWrite).length) {
-          if (this.options.selfUpdate && !this.options.noCommit) {
-            const commitMessage = await ChangeMessage.create(changes, {
-              ...this.options,
-              isCommit: true,
-            })
-            const runOptions = { recursive: true, message: commitMessage }
-            await this.githubClient.run(newData, runOptions)
-          } else {
-            await bluebird.each(Object.keys(newData.toWrite), (key) => {
-              const filePath = path.join(__dirname, '../data/', `${key}.json`)
-              fs.writeFileSync(filePath, JSON.stringify(newData.toWrite[key]))
-            })
-            if (this.options.selfUpdate && this.options.noCommit) {
-              this.options.noCommit = false
-              this.options.postBuild = true
-              await this.run()
-            }
+          const commitMessage = await createChangeMessage(changes, {
+            ...this.options,
+            isCommit: true,
+          })
+          const runOptions = {
+            recursive: true,
+            message: commitMessage,
+            owner: GITHUB_CONFIG.owner,
+            repo: SELF_REPO,
           }
+          await updateRepo(newData, runOptions)
         }
       }
 
@@ -685,42 +637,18 @@ export class Maintenance {
     }
   }
 
-  constructor(redisStore, config, opts = {}) {
-    if ((opts.postBuild || opts.localStore) && !redisStore) {
+  constructor(config, opts = {}) {
+    if (!(config && config.GITHUB_CONFIG && config.SELF_REPO)) {
       throw new Error(
-        'Must have valid redis client for post-build maintenance or local maintenance with localStore flag'
+        'Missing required props for Github client for self-updating maintenance'
       )
     }
-    if (opts.selfUpdate && !opts.noCommit) {
-      if (
-        !(
-          config &&
-          config.GITHUB_TOKEN &&
-          config.GITHUB_CONFIG &&
-          config.SELF_REPO
-        )
-      ) {
-        throw new Error(
-          'Missing required props for Github client for self-updating maintenance'
-        )
-      } else {
-        this.githubClient = new GithubHelper(config.GITHUB_TOKEN, {
-          owner: config.GITHUB_CONFIG.owner,
-          repo: config.SELF_REPO,
-        })
-      }
-    }
 
-    this.redisClient = redisStore
     this.config = config
-    this.twitterClient =
-      config && _.has(config, 'TWITTER_CONFIG.consumer_key')
-        ? new TwitterHelper(config.TWITTER_CONFIG, config.LIST_ID)
-        : null
     this.options = opts
   }
 }
 
 // eslint-disable-next-line max-len
-export const configureMaintenance = (redisStore, config, flags) =>
-  new Maintenance(redisStore, config, flags)
+export const configureMaintenance = (config, flags) =>
+  new Maintenance(config, flags)

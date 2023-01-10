@@ -17,7 +17,8 @@
         "jest/lowercase-name": 0,
         "jest/consistent-test-it": ["error", {
             "fn": "test"
-        }]
+        }],
+        "jest/require-hook": 0
     },
     "env": {
         "browser": false,
