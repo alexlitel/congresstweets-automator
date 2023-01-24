@@ -1,3 +1,9 @@
+import dotEnv from 'dotenv'
+
+dotEnv.config()
+
+export const IS_PROD = process.env.NODE_ENV === 'production'
+
 /* eslint-disable */
 export const TWITTER_CONFIG = {
   access_token: process.env.ACCESS_TOKEN,
@@ -6,24 +12,23 @@ export const TWITTER_CONFIG = {
   consumer_secret: process.env.TWITTER_API_SECRET,
 }
 
-export const INIT_DATE = process.env.INIT_DATE || null
-export const TIME_ZONE = process.env.TZ || 'America/New_York'
-export const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
+export const TIME_ZONE = 'America/New_York'
 export const LIST_ID = process.env.LIST_ID
 export const GITHUB_TOKEN = process.env.GITHUB_TOKEN
 export const GITHUB_USER = process.env.GITHUB_USER
-export const SITE_REPO = process.env.SITE_REPO
-export const SELF_REPO = process.env.SELF_REPO
+export const TWEET_REPO = process.env.TWEET_REPO
+export const USER_REPO = process.env.USER_REPO
+export const BUCKET = process.env.BUCKET || 'test'
 
 export const GITHUB_CONFIG = {
   owner: GITHUB_USER,
-  repo: SITE_REPO,
+  repo: TWEET_REPO,
 }
 
 export const APP_CONFIG = {
-  SELF_REPO,
+  IS_PROD,
+  USER_REPO,
   TWITTER_CONFIG,
-  INIT_DATE,
   GITHUB_CONFIG,
   LIST_ID,
   GITHUB_TOKEN,

@@ -1,170 +1,173 @@
 import { Octokit } from '@octokit/rest'
-import { BuildMd } from './helpers'
+import { GITHUB_TOKEN } from './config'
+import { generateMeta, prettyPrint } from './util'
 
-export default class GithubHelper {
-  async createBlobs(data, recursive) {
-    try {
-      let promises
+export const githubClient = new Octokit({
+  auth: GITHUB_TOKEN,
+  baseUrl: 'https://api.github.com',
+  userAgent: 'TweetsOfCongressApp',
+  request: {
+    timeout: 5000,
+  },
+})
 
-      if (recursive) {
-        promises = await Object.entries(data.toWrite).map((pair) => [
-          pair[0].replace(/_/g, '-'),
-          JSON.stringify(pair[1]),
-        ])
-      } else {
-        promises = [
-          await JSON.stringify(data.tweets),
-          await BuildMd.generateMeta(data.time.yesterdayDate),
-        ]
-      }
+export const createBlobs = async (repo, owner, data, recursive) => {
+  try {
+    let promises
 
-      return await Promise.all(
-        promises.map(async (item, i) => {
-          const buffer = await Buffer.from(recursive ? item[1] : item).toString(
-            'base64'
-          )
-          const promiseData = (
-            await this.client.git.createBlob({
-              ...this.config,
-              content: buffer,
-              encoding: 'base64',
-            })
-          ).data
-
-          let blobPath
-          if (recursive) {
-            blobPath = `data/${item[0]}.json`
-          } else {
-            blobPath =
-              i === 0
-                ? `data/${data.time.yesterdayDate}.json`
-                : `_posts/${data.time.yesterdayDate}--tweets.md`
-          }
-
-          return Object.assign(promiseData, {
-            path: blobPath,
-            type: 'blob',
-            mode: '100644',
-          })
-        })
-      )
-    } catch (e) {
-      return Promise.reject(e)
+    if (recursive) {
+      promises = await Object.entries(data.toWrite).map((pair) => [
+        pair[0].replace(/_/g, '-'),
+        prettyPrint(pair[1])
+      ])
+    } else {
+      promises = [
+        await JSON.stringify(data.tweets),
+        await generateMeta(data.time.yesterdayDate),
+      ]
     }
-  }
 
-  async getLatestCommitSha(opts = {}) {
-    try {
-      return (
-        await this.client.repos.getCommit({
-          ...this.config,
-          ref: 'heads/master',
-          ...opts,
-          mediaType: {
-            format: 'sha',
-          },
-        })
-      ).data
-    } catch (e) {
-      return Promise.reject(e)
-    }
-  }
-
-  async getTree(sha, blobs) {
-    try {
-      const treeSha = (
-        await this.client.git.getTree({
-          ...this.config,
-          tree_sha: sha,
-          recursive: 1,
-        })
-      ).data.sha
-      return { tree: blobs, base_tree: treeSha }
-    } catch (e) {
-      return Promise.reject(e)
-    }
-  }
-
-  async createTree(tree) {
-    try {
-      return (
-        await this.client.git.createTree({
-          ...this.config,
-          ...tree,
-        })
-      ).data.sha
-    } catch (e) {
-      return Promise.reject(e)
-    }
-  }
-
-  async createCommit(treeSha, time, prevCommitSha, message) {
-    try {
-      const parents =
-        typeof prevCommitSha === 'object' ? prevCommitSha : [prevCommitSha]
-      return (
-        await this.client.git.createCommit({
-          ...this.config,
-          message: message || `Add tweets for ${time.yesterdayDate}`,
-          tree: treeSha,
-          parents,
-        })
-      ).data.sha
-    } catch (e) {
-      return Promise.reject(e)
-    }
-  }
-
-  async updateReference(sha) {
-    try {
-      return this.client.git.updateRef({
-        ...this.config,
-        ref: 'heads/master',
-        sha,
-        force: true,
-      })
-    } catch (e) {
-      return Promise.reject(e)
-    }
-  }
-
-  async run(data, options = {}) {
-    try {
-      const { recursive, message } = options
-
-      const headSha = await this.getLatestCommitSha()
-
-      await this.createBlobs(data, recursive)
-        .then((blobs) => this.getTree(headSha, blobs))
-        .then((tree) => this.createTree(tree))
-        .then((createdTree) =>
-          this.createCommit(createdTree, data.time, headSha, message)
+    return await Promise.all(
+      promises.map(async (item, i) => {
+        const buffer = await Buffer.from(recursive ? item[1] : item).toString(
+          'base64'
         )
-        .then((commit) => this.updateReference(commit))
+        const promiseData = (
+          await githubClient.git.createBlob({
+            repo,
+            owner,
+            content: buffer,
+            encoding: 'base64',
+          })
+        ).data
 
-      return {
-        success: true,
-      }
-    } catch (e) {
-      return Promise.reject(e)
-    }
+        let blobPath
+        if (recursive) {
+          blobPath = `${item[0]}.json`
+        } else {
+          blobPath =
+            i === 0
+              ? `data/${data.time.yesterdayDate}.json`
+              : `_posts/${data.time.yesterdayDate}--tweets.md`
+        }
+
+        return Object.assign(promiseData, {
+          path: blobPath,
+          type: 'blob',
+          mode: '100644',
+        })
+      })
+    )
+  } catch (e) {
+    return Promise.reject(e)
   }
+}
 
-  constructor(token, config) {
-    if (!token || !config || !config.owner || !config.repo) {
-      throw new Error('Missing required props for Github client')
-    }
+export const getLatestCommitSha = async (repo, owner, opts = {}) => {
+  try {
+    return (
+      await githubClient.repos.getCommit({
+        repo,
+        owner,
+        ref: 'heads/master',
+        ...opts,
+        mediaType: {
+          format: 'sha',
+        },
+      })
+    ).data
+  } catch (e) {
+    return Promise.reject(e)
+  }
+}
 
-    this.token = token
+export const getTree = async (repo, owner, sha, blobs) => {
+  try {
+    const treeSha = (
+      await githubClient.git.getTree({
+        repo,
+        owner,
+        tree_sha: sha,
+        recursive: 1,
+      })
+    ).data.sha
+    return { tree: blobs, base_tree: treeSha }
+  } catch (e) {
+    return Promise.reject(e)
+  }
+}
 
-    this.client = new Octokit({
-      auth: this.token,
-      baseUrl: 'https://api.github.com',
-      userAgent: 'TweetsOfCongressApp',
-      request: {
-        timeout: 5000,
-      },
+export const createTree = async (repo, owner, tree) => {
+  try {
+    return (
+      await githubClient.git.createTree({
+        repo,
+        owner,
+        ...tree,
+      })
+    ).data.sha
+  } catch (e) {
+    return Promise.reject(e)
+  }
+}
+
+export const createCommit = async (
+  repo,
+  owner,
+  treeSha,
+  time,
+  prevCommitSha,
+  message
+) => {
+  try {
+    const parents =
+      typeof prevCommitSha === 'object' ? prevCommitSha : [prevCommitSha]
+    return (
+      await githubClient.git.createCommit({
+        repo,
+        owner,
+        message: message || `Add tweets for ${time.yesterdayDate}`,
+        tree: treeSha,
+        parents,
+      })
+    ).data.sha
+  } catch (e) {
+    return Promise.reject(e)
+  }
+}
+
+export const updateReference = async (repo, owner, sha) => {
+  try {
+    return githubClient.git.updateRef({
+      repo,
+      owner,
+      ref: 'heads/master',
+      sha,
+      force: true,
     })
-    this.config = config
+  } catch (e) {
+    return Promise.reject(e)
+  }
+}
+
+export const updateRepo = async (data, options = {}) => {
+  try {
+    const { recursive, message, repo, owner } = options
+
+    const headSha = await getLatestCommitSha(repo, owner)
+
+    await createBlobs(repo, owner, data, recursive)
+      .then((blobs) => getTree(repo, owner, headSha, blobs))
+      .then((tree) => createTree(repo, owner, tree))
+      .then((createdTree) =>
+        createCommit(repo, owner, createdTree, data.time, headSha, message)
+      )
+      .then((commit) => updateReference(repo, owner, commit))
+
+    return {
+      success: true,
+    }
+  } catch (e) {
+    return Promise.reject(e)
   }
 }

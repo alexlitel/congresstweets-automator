@@ -7,6 +7,7 @@
     "plugins": ["prettier", "jest"],
     "rules": {
         "prettier/prettier": "error",
+        "prettier/trailing-comma": 0,
         "jest/no-hooks": 0,
         "jest/prefer-called-with": 0,
         "jest/no-truthy-falsy": 0,
@@ -17,7 +18,8 @@
         "jest/lowercase-name": 0,
         "jest/consistent-test-it": ["error", {
             "fn": "test"
-        }]
+        }],
+        "jest/require-hook": 0
     },
     "env": {
         "browser": false,

@@ -1,0 +1,79 @@
+service: congresstweets-auto
+app: congresstweets-auto
+org: alexlitel
+
+package:
+  individually: true
+
+plugins:
+  - serverless-offline
+  - serverless-webpack
+  - serverless-offline-sns
+  - serverless-s3-local
+  - serverless-pseudo-parameters
+
+custom:
+  serverless-offline:
+    port: 3000
+  serverless-offline-sns:
+    port: 3001
+  serverless-s3-local:
+    port: 3002
+    directory: /tmp
+  webpack:
+    webpackConfig: ./webpack.config.js
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  region: us-west-2
+  memorySize: 512
+  environment:
+    BUCKET:
+      Ref: congressAutoBucket
+    TWITTER_API_KEY: ${ssm:TWITTER_API_KEY}
+    TWITTER_API_SECRET: ${ssm:TWITTER_API_SECRET}
+    ACCESS_TOKEN: ${ssm:TWITTER_ACCESS_TOKEN}
+    ACCESS_TOKEN_SECRET: ${ssm:TWITTER_ACCESS_TOKEN_SECRET}
+    LIST_ID: ${ssm:LIST_ID}
+    GITHUB_TOKEN: ${ssm:GITHUB_TOKEN}
+    GITHUB_USER: alexlitel
+    TWEET_REPO: congresstweets
+    USER_REPO: congresstweets-accounts
+    NODE_ENV: production
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+      Resource:
+        Fn::Join:
+          - ''
+          - - 'arn:aws:s3:::'
+            - Ref: congressAutoBucket
+            - '/*'
+
+resources:
+ Resources:
+  congressAutoBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: congresstweetsauto
+
+functions:
+  updateData:
+    handler: src/handlers/updateData.handler
+    events:
+      - http:
+          path: update
+          method: post
+          cors: true
+  checkUsers:
+    handler: src/handlers/checkUsers.handler
+    events:
+      - schedule: cron(10 1 * * ? *)      
+  runApp:
+    handler: src/handlers/runApp.handler
+    timeout: 250
+    events:
+      - schedule: cron(0 * * * ? *)

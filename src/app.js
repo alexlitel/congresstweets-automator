@@ -1,25 +1,29 @@
 import _ from 'lodash'
-import { TwitterHelper } from './twitter'
-import GithubHelper from './github'
+import { collectTweets } from './twitter/api'
+import { updateRepo } from './github'
 import { configureMaintenance } from './maintenance'
-import { createTimeObj, getTime, serializeObj, unserializeObj } from './util'
+import { createTimeObj, getTime } from './util'
+import {
+  checkIfBucketDataExists,
+  loadBucketData,
+  writeBucketData,
+} from './awsData'
+import { GITHUB_CONFIG } from './config'
 
 export class App {
   async init() {
-    return configureMaintenance(this.redisClient, this.config, {
+    return configureMaintenance(this.config, {
       app: true,
     }).run()
   }
 
   async run() {
     try {
-      const isActive = !!(await this.redisClient.existsAsync('app'))
-      const data = isActive
-        ? unserializeObj(await this.redisClient.hgetallAsync('app'))
-        : await this.init()
+      const isActive = await checkIfBucketDataExists()
+      const data = isActive ? await loadBucketData() : await this.init()
 
       data.time = _.chain(data)
-        .pick(['initDate', 'lastRun', 'lastUpdate'])
+        .pick(['lastRun', 'lastUpdate'])
         .mapValues((v) => (_.isNil(v) ? null : getTime(v)))
         .thru((timeProps) => createTimeObj(timeProps))
         .value()
@@ -28,13 +32,11 @@ export class App {
         data.lastRun = getTime().startOf('day').format()
       }
 
-      const twitterClient = new TwitterHelper(
-        this.config.TWITTER_CONFIG,
-        this.config.LIST_ID
-      )
-      const twitterData = await twitterClient.run(data)
+      const twitterData = await collectTweets(data)
 
-      const newData = {}
+      const newData = {
+        ...data,
+      }
 
       if (
         twitterData.sinceId &&
@@ -61,10 +63,7 @@ export class App {
           'id'
         )
 
-        await new GithubHelper(
-          this.config.GITHUB_TOKEN,
-          this.config.GITHUB_CONFIG
-        ).run(data)
+        await updateRepo(data, { ...GITHUB_CONFIG })
         // eslint-disable-next-line no-console
         console.log(
           `Updated Github repo with new dataset of ${data.tweets.length} for ${data.time.yesterdayDate}`
@@ -75,11 +74,11 @@ export class App {
       newData.lastRun = data.time.now
       // eslint-disable-next-line no-console
       console.log(
-        `Successful run process, collected ${
-          (twitterData.tweets.yesterday || twitterData.tweets).length
+        `Successful run process, collected ${(twitterData.tweets.yesterday || twitterData.tweets).length
         } new tweets`
       )
-      await this.redisClient.hmsetAsync('app', serializeObj(newData))
+
+      await writeBucketData(newData)
       return true
     } catch (e) {
       // eslint-disable-next-line no-console
@@ -88,12 +87,10 @@ export class App {
     }
   }
 
-  constructor(config, redisClient, opts = {}) {
+  constructor(config, opts = {}) {
     this.config = config
-    this.redisClient = redisClient
     this.options = opts
   }
 }
 
-export const appBuilder = (config, redisClient, opts) =>
-  new App(config, redisClient, opts)
+export const appBuilder = (config, opts) => new App(config, opts)

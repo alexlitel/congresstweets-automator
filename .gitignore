@@ -9,3 +9,6 @@ node_modules/
 /junk/
 *.sublime-workspace
 .vscode/
+.serverless/
+automator/
+build/
