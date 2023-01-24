@@ -34,7 +34,9 @@ export class App {
 
       const twitterData = await collectTweets(data)
 
-      const newData = {}
+      const newData = {
+        ...data,
+      }
 
       if (
         twitterData.sinceId &&
@@ -72,8 +74,7 @@ export class App {
       newData.lastRun = data.time.now
       // eslint-disable-next-line no-console
       console.log(
-        `Successful run process, collected ${
-          (twitterData.tweets.yesterday || twitterData.tweets).length
+        `Successful run process, collected ${(twitterData.tweets.yesterday || twitterData.tweets).length
         } new tweets`
       )
 

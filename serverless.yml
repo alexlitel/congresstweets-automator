@@ -31,17 +31,15 @@ provider:
   environment:
     BUCKET:
       Ref: congressAutoBucket
- 
-    TZ: ${param.TZ}
-    TWITTER_API_KEY: ${param.TWITTER_API_KEY}
-    TWITTER_API_SECRET: ${param.TWITTER_API_SECRET}
-    ACCESS_TOKEN: ${param.ACCESS_TOKEN}
-    ACCESS_TOKEN_SECRET: ${param.ACCESS_TOKEN_SECRET}
-    LIST_ID: ${param.LIST_ID}
-    GITHUB_TOKEN: ${param.GITHUB_TOKEN}
-    GITHUB_USER: ${param.GITHUB_USER}
-    SITE_REPO: ${param.SITE_REPO}
-    SELF_REPO: ${param.SELF_REPO}
+    TWITTER_API_KEY: ${ssm:TWITTER_API_KEY}
+    TWITTER_API_SECRET: ${ssm:TWITTER_API_SECRET}
+    ACCESS_TOKEN: ${ssm:TWITTER_ACCESS_TOKEN}
+    ACCESS_TOKEN_SECRET: ${ssm:TWITTER_ACCESS_TOKEN_SECRET}
+    LIST_ID: ${ssm:LIST_ID}
+    GITHUB_TOKEN: ${ssm:GITHUB_TOKEN}
+    GITHUB_USER: alexlitel
+    TWEET_REPO: congresstweets
+    USER_REPO: congresstweets-accounts
     NODE_ENV: production
   iamRoleStatements:
     - Effect: Allow
@@ -73,9 +71,9 @@ functions:
   checkUsers:
     handler: src/handlers/checkUsers.handler
     events:
-      - schedule: cron(0 1 10 * ? *)      
+      - schedule: cron(10 1 * * ? *)      
   runApp:
     handler: src/handlers/runApp.handler
     timeout: 250
     events:
-      - schedule: cron(0 * ? * * *)
+      - schedule: cron(0 * * * ? *)

@@ -1,7 +1,5 @@
 const path = require('path')
 const slsw = require('serverless-webpack')
-const CopyPlugin = require('copy-webpack-plugin')
-const nodeExternals = require('webpack-node-externals')
 
 module.exports = {
   entry: slsw.lib.entries,
@@ -11,7 +9,7 @@ module.exports = {
     minimize: false,
   },
   devtool: false,
-  externals: ['aws-sdk', nodeExternals()],
+  externals: ['aws-sdk'],
   module: {
     rules: [
       {

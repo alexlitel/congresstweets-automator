@@ -1,9 +1,7 @@
 import moment from 'moment-timezone'
 import camelCase from 'lodash/camelCase'
 import mapValues from 'lodash/mapValues'
-import pick from 'lodash/pick'
 import flatMapDeep from 'lodash/flatMapDeep'
-import yargsParser from 'yargs-parser'
 import { TIME_ZONE } from './config'
 
 export const generateMeta = (date) => {
@@ -14,7 +12,7 @@ export const generateMeta = (date) => {
     `date: ${getTime(date, 'YYYY-MM-DD')}`,
     `summary: These are the tweets for ${getTime(date, 'MMMM D, YYYY')}.`,
     'categories:',
-    '---\n\n',
+    '---\n\n'
   ].join('\n')
 }
 
@@ -82,7 +80,7 @@ export const extractAccounts = (userData) =>
             type: userType,
             chamber,
             user_index: userIndex,
-            account_index: accountIndex,
+            account_index: accountIndex
           },
           userType === 'member' ? { bioguide: userId.bioguide, state } : {},
           party ? { party } : {}
@@ -90,23 +88,15 @@ export const extractAccounts = (userData) =>
       )
   )
 
-export const parsedFlags = pick(
-  yargsParser(process.argv.slice(2), {
-    alias: {
-      'format-only': ['format', 'ff', 'formatfiles', 'formatonly', 'fo', 'fmt'],
-      'init-list': ['initlist', 'il', 'list', 'init'],
-      'local-store': ['ls', 'localstore', 'nostore'],
-      'no-commit': ['n', 'nc', 'no', 'nocommit'],
-      'post-build': ['p', 'post', 'pb', 'postbuild'],
-      'self-update': ['s', 'self', 'su', 'selfupdate'],
-    },
-  }),
-  [
-    'formatOnly',
-    'initList',
-    'localStore',
-    'noCommit',
-    'postBuild',
-    'selfUpdate',
-  ]
-)
+export const asyncReduce = async (arr, reducer, initialValue) =>
+  // eslint-disable-next-line implicit-arrow-linebreak
+  arr.reduce(async (p, c) => {
+    const val = await p
+    return reducer(val, c)
+  }, Promise.resolve(initialValue))
+
+export const keyedReduce = (arr, key) =>
+  arr.reduce((p, c) => ({ ...p, [c[key]]: c }), {})
+
+export const computedKeyReduce = (arr, func) =>
+  arr.reduce((p, c) => ({ ...p, [func(c)]: c }), {})

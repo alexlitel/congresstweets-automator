@@ -1,10 +1,7 @@
 import _ from 'lodash'
-import path from 'path'
 import rp from 'request-promise'
-import fs from 'fs'
 import {
   collectTweets,
-  createList,
   getListMembers,
   lookupUsers,
   updateList,
@@ -12,7 +9,7 @@ import {
 import { createChangeMessage } from './changeMessage'
 import { updateRepo } from './github'
 import { createTimeObj, getTime, nativeClone, extractAccounts } from './util'
-import { GITHUB_CONFIG, SELF_REPO } from './config'
+import { GITHUB_CONFIG, USER_REPO } from './config'
 import {
   checkIfBucketDataExists,
   loadBucketData,
@@ -32,7 +29,7 @@ export const getRepoData = async (historical = false) => {
   const data = await rp({
     gzip: true,
     url: `https://raw.githubusercontent.com/alexlitel/congresstweets-accounts/master/${
-      historical ? 'historical- ' : ''
+      historical ? 'historical-' : ''
     }users.json`,
     json: true,
   })
@@ -135,7 +132,7 @@ export class Maintenance {
               }
               return _.deburr(name)
             })
-            .sort((a, b) => a.length < b.length)
+            .sort((a, b) => b.length - a.length)
             .pop()
           obj.type = 'member'
           obj.state = currTerm.state
@@ -529,43 +526,6 @@ export class Maintenance {
     }
   }
 
-  async initList(accounts) {
-    try {
-      if (this.options.isProd) throw new Error('List must be created locally')
-      const listName =
-        typeof this.options.initList === 'string' ? this.options.initList : null
-      const createdList = await createList(listName)
-      await fs.appendFileSync(
-        path.join(__dirname, '../.env'),
-        `\nLIST_ID=${createdList.id_str}`,
-        'utf8'
-      )
-
-      await updateList(
-        'create',
-        accounts.map((x) => x.id),
-        createdList.id_str
-      )
-      return true
-    } catch (e) {
-      return Promise.reject(e)
-    }
-  }
-
-  async formatFiles() {
-    if (this.options.isProd) throw new Error('Can only format files locally')
-    const files = ['users', 'historical-users']
-    const folder = path.join(__dirname, '../data/')
-    for await (const file of files) {
-      const filePath = path.join(folder, `${file}.json`)
-      const filteredPath = path.join(folder, `${file}-filtered.json`)
-      const data = sortAndFilter(JSON.parse(fs.readFileSync(filePath)))
-      fs.writeFileSync(filePath, JSON.stringify(data.sorted))
-      fs.writeFileSync(filteredPath, JSON.stringify(data.filtered))
-    }
-    return true
-  }
-
   async run() {
     try {
       if (this.options.formatOnly) return await this.formatFiles()
@@ -574,13 +534,6 @@ export class Maintenance {
       fileData.users = await getRepoData()
 
       fileData.accounts = await extractAccounts(fileData.users)
-
-      if (
-        this.twitterClient &&
-        (!this.twitterClient.listId || this.options.initList)
-      ) {
-        await this.initList(fileData.accounts)
-      }
 
       const isActive = (await checkIfBucketDataExists()) && !this.options.app
 
@@ -612,7 +565,7 @@ export class Maintenance {
 
       if (Object.keys(newData).length) {
         if (newData.toStore && Object.keys(newData.toStore).length) {
-          await writeBucketData(newData.toStore)
+          await writeBucketData({ ...bucketData, ...newData.toStore })
         }
         if (newData.toWrite && Object.keys(newData.toWrite).length) {
           const commitMessage = await createChangeMessage(changes, {
@@ -623,7 +576,7 @@ export class Maintenance {
             recursive: true,
             message: commitMessage,
             owner: GITHUB_CONFIG.owner,
-            repo: SELF_REPO,
+            repo: USER_REPO,
           }
           await updateRepo(newData, runOptions)
         }
@@ -638,7 +591,7 @@ export class Maintenance {
   }
 
   constructor(config, opts = {}) {
-    if (!(config && config.GITHUB_CONFIG && config.SELF_REPO)) {
+    if (!(config && config.GITHUB_CONFIG && config.USER_REPO)) {
       throw new Error(
         'Missing required props for Github client for self-updating maintenance'
       )

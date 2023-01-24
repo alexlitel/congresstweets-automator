@@ -1,10 +1,9 @@
 import { configureMaintenance } from '../maintenance'
 import { APP_CONFIG, IS_PROD } from '../config'
-import { parsedFlags } from '../util'
 
-const runProcess = async () => {
+export const handler = async () => {
   try {
-    const flags = { ...parsedFlags, isProd: IS_PROD, selfUpdate: true }
+    const flags = { selfUpdate: true, isProd: IS_PROD }
     const maintain = configureMaintenance(APP_CONFIG, flags)
     await maintain.run()
   } catch (e) {
@@ -14,5 +13,3 @@ const runProcess = async () => {
 
   return true
 }
-
-runProcess()

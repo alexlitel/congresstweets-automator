@@ -3,7 +3,7 @@ import bluebird from 'bluebird'
 import { normalizeTweetData } from './parseTweet'
 import { buildQueries } from './buildQueries'
 import _ from 'lodash'
-import { checkDateValidity } from '../util'
+import { checkDateValidity, getTime } from '../util'
 import { LIST_ID, TWITTER_CONFIG } from '../config'
 
 export const twitterClient = new Twit(TWITTER_CONFIG)
@@ -15,7 +15,7 @@ export const switchAuthType = () => {
       { app_only_auth: true }
     )
   } else {
-    twitterClient.config = this.config
+    twitterClient.config = twitterClient.config
   }
 }
 
@@ -84,7 +84,7 @@ export const updateList = async (action, ids, listId) => {
 
     const props = {
       list_id: LIST_ID,
-      user_id: ids,
+      user_id: ids
     }
 
     return await makeApiRequest('post', `lists/members/${action}_all`, props)
@@ -99,7 +99,7 @@ export const getListMembers = async (noStatuses = false) => {
 
     const props = {
       list_id: LIST_ID,
-      count: 5000,
+      count: 5000
     }
 
     if (noStatuses) props.skip_status = true
@@ -121,7 +121,7 @@ export const lookupUsers = async (ids, screenName = false) => {
     }
 
     const props = {
-      [screenName ? 'screen_name' : 'user_id']: ids,
+      [screenName ? 'screen_name' : 'user_id']: ids
     }
 
     return await makeApiRequest('post', 'users/lookup', props)
@@ -137,7 +137,7 @@ export const searchUsers = async (query, page = 0) => {
     const props = {
       q: query,
       count: 20,
-      page,
+      page
     }
 
     return await makeApiRequest('get', 'users/search', props)
@@ -151,7 +151,7 @@ export const getList = async () => {
     if (!LIST_ID) throw new Error('List id is missing')
 
     const props = {
-      list_id: LIST_ID,
+      list_id: LIST_ID
     }
 
     return await makeApiRequest('get', 'lists/show', props)
@@ -166,7 +166,7 @@ export const createList = async (listName = null, description = null) => {
       {
         name: listName || 'congress',
         mode: 'private',
-        description,
+        description
       },
       _.isNil
     )
@@ -183,7 +183,7 @@ export const getUser = async (userId, screenName = false) => {
     // eslint-disable-next-line no-restricted-globals
     if (isNaN(+userId) && !screenName) screenName = true
     const props = {
-      [screenName ? 'screen_name' : 'user_id']: userId,
+      [screenName ? 'screen_name' : 'user_id']: userId
     }
 
     return await makeApiRequest('get', 'users/show', props)
@@ -214,7 +214,7 @@ export const searchStatuses = async (query, sinceId, maxId, params) => {
         result_type: 'recent',
         since_id: sinceId,
         max_id: maxId,
-        ...params,
+        ...params
       },
       _.isNil
     )
@@ -259,6 +259,71 @@ export const searchIterate = async (query, sinceId, maxId, time) => {
   }
 }
 
+export const userTimeline = async (
+  reqCount,
+  userId,
+  screenName = false,
+  maxId,
+  sinceId = null
+) => {
+  try {
+    if (Number.isNaN(+userId) && !screenName) screenName = true
+    const props = _.omitBy(
+      {
+        [screenName ? 'screen_name' : 'user_id']: userId,
+        since_id: sinceId,
+        max_id: maxId,
+        tweet_mode: 'extended',
+        count: 200
+      },
+      _.isNil
+    )
+
+    reqCount = reqCount + 1
+
+    return await makeApiRequest('get', 'statuses/user_timeline', props)
+  } catch (e) {
+    return Promise.reject(e)
+  }
+}
+
+export const timelineIterate = async (
+  reqCount,
+  userId,
+  date,
+  sinceId = null,
+  maxTweetId = null
+) => {
+  try {
+    let isValid = true
+    let collected = []
+    let maxId = maxTweetId || null
+    const timeStamp = await getTime(date).startOf('day')
+    while (isValid) {
+      let lastTweet = null
+      const tweets = (
+        await userTimeline(reqCount, userId, null, maxId, sinceId)
+      ).filter(
+        (x) => timeStamp <= getTime(new Date(x.created_at)).startOf('day')
+      )
+      if (tweets.length) lastTweet = tweets[tweets.length - 1]
+      if (!tweets.length || lastTweet.id_str === maxId) isValid = false
+      else {
+        const mapped = await Promise.all(tweets.map(normalizeTweetData))
+        collected = collected.concat(mapped)
+        if (mapped.length < 199) {
+          isValid = false
+        } else {
+          maxId = lastTweet.id_str
+        }
+      }
+    }
+    return collected
+  } catch (e) {
+    return Promise.reject(e)
+  }
+}
+
 export const collectTweets = async (data, isMaintenance) => {
   try {
     const { time, collectSince, accounts } = data
@@ -267,7 +332,7 @@ export const collectTweets = async (data, isMaintenance) => {
     let tweetsCollection = time.yesterdayDate
       ? {
           yesterday: [],
-          today: [],
+          today: []
         }
       : []
     let newSinceId
@@ -305,7 +370,7 @@ export const collectTweets = async (data, isMaintenance) => {
     return {
       sinceId: newSinceId,
       success: count === queries.length,
-      tweets: tweetsCollection,
+      tweets: tweetsCollection
     }
   } catch (e) {
     // eslint-disable-next-line no-console

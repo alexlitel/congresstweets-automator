@@ -1,6 +1,6 @@
 import { Octokit } from '@octokit/rest'
 import { GITHUB_TOKEN } from './config'
-import { generateMeta } from './util'
+import { generateMeta, prettyPrint } from './util'
 
 export const githubClient = new Octokit({
   auth: GITHUB_TOKEN,
@@ -18,7 +18,7 @@ export const createBlobs = async (repo, owner, data, recursive) => {
     if (recursive) {
       promises = await Object.entries(data.toWrite).map((pair) => [
         pair[0].replace(/_/g, '-'),
-        JSON.stringify(pair[1]),
+        prettyPrint(pair[1])
       ])
     } else {
       promises = [

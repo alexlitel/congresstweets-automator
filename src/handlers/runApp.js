@@ -1,7 +1,7 @@
 import { appBuilder } from '../app'
 import { APP_CONFIG } from '../config'
 
-const runProcess = async () => {
+export const handler = async () => {
   try {
     const main = appBuilder(APP_CONFIG)
     await main.run()
@@ -13,4 +13,3 @@ const runProcess = async () => {
   return true
 }
 
-runProcess()
