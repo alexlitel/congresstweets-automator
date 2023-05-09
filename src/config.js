@@ -10,6 +10,7 @@ export const TWITTER_CONFIG = {
   access_token_secret: process.env.ACCESS_TOKEN_SECRET,
   consumer_key: process.env.TWITTER_API_KEY,
   consumer_secret: process.env.TWITTER_API_SECRET,
+  timeout_ms: 10000
 }
 
 export const TIME_ZONE = 'America/New_York'
