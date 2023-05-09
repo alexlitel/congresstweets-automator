@@ -11,6 +11,7 @@ export const getActualUrl = async (url) => {
           followRedirect: false,
           followOriginalHttpMethod: true,
           url,
+          timeout: 3000
         })
       ).location || url
     )
